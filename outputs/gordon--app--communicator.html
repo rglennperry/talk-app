@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Communicator</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --card: #0f3460;
+    --accent: #e94560;
+    --text: #ffffff;
+    --text-dim: #a0a0b8;
+    --success: #2ecc71;
+    --warning: #f39c12;
+    --danger: #e74c3c;
+    --info: #3498db;
+    --radius: 16px;
+    --gap: 10px;
+  }
+
+  html, body {
+    height: 100%; width: 100%;
+    overflow: hidden;
+    font-family: -apple-system, "Helvetica Neue", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    touch-action: manipulation;
+    -webkit-user-select: none; user-select: none;
+  }
+
+  /* ── Layout ── */
+  #app {
+    display: flex; flex-direction: column;
+    height: 100%; width: 100%;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  /* ── Quick Bar (always visible) ── */
+  #quickbar {
+    display: flex; gap: var(--gap);
+    padding: var(--gap);
+    flex-shrink: 0;
+  }
+  #quickbar .tile {
+    flex: 1;
+    min-height: 70px;
+    font-size: 1.1rem;
+    border-radius: var(--radius);
+  }
+  #quickbar .tile .emoji { font-size: 2rem; }
+
+  .qb-yes   { background: var(--success); }
+  .qb-no    { background: var(--danger); }
+  .qb-help  { background: var(--warning); color: #222; }
+  .qb-pain  { background: var(--accent); }
+  .qb-thanks { background: var(--info); }
+
+  /* ── Category Tabs ── */
+  #tabs {
+    display: flex; gap: 6px;
+    padding: 0 var(--gap);
+    flex-shrink: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tab {
+    flex-shrink: 0;
+    padding: 10px 18px;
+    font-size: 1rem; font-weight: 600;
+    background: var(--surface);
+    color: var(--text-dim);
+    border: 2px solid transparent;
+    border-bottom: none;
+    border-radius: var(--radius) var(--radius) 0 0;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .tab.active {
+    background: var(--card);
+    color: var(--text);
+    border-color: var(--accent);
+  }
+
+  /* ── Message Display ── */
+  #message-bar {
+    display: flex; align-items: center; gap: var(--gap);
+    padding: 8px var(--gap);
+    flex-shrink: 0;
+    min-height: 52px;
+  }
+  #message-display {
+    flex: 1;
+    background: var(--surface);
+    border: 2px solid var(--card);
+    border-radius: var(--radius);
+    padding: 10px 16px;
+    font-size: 1.3rem;
+    font-weight: 600;
+    min-height: 44px;
+    display: flex; align-items: center;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  #clear-btn {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: var(--danger);
+    border: none;
+    color: white;
+    font-size: 1.6rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #speak-btn {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: var(--success);
+    border: none;
+    color: white;
+    font-size: 1.6rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ── Tile Grid ── */
+  #grid-container {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: var(--gap);
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--gap);
+  }
+
+  /* ── Tile ── */
+  .tile {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 4px;
+    padding: 12px 8px;
+    min-height: 100px;
+    background: var(--card);
+    border: 3px solid transparent;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: transform 0.1s, border-color 0.15s, opacity 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tile:active {
+    transform: scale(0.95);
+    border-color: var(--accent);
+    opacity: 0.85;
+  }
+  .tile .emoji {
+    font-size: 2.8rem;
+    line-height: 1.1;
+  }
+  .tile .label {
+    font-size: 1.05rem;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.2;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  /* color-coded category backgrounds */
+  .cat-needs    .tile { background: #1a5276; }
+  .cat-pain     .tile { background: #7b241c; }
+  .cat-feelings .tile { background: #1e8449; }
+  .cat-people   .tile { background: #6c3483; }
+  .cat-actions  .tile { background: #b9770e; color: #fff; }
+  .cat-comfort  .tile { background: #117a65; }
+
+  /* ── Spoken flash ── */
+  .tile.spoken {
+    border-color: var(--success) !important;
+    box-shadow: 0 0 12px rgba(46,204,113,0.5);
+  }
+
+  /* ── Landscape tweaks ── */
+  @media (orientation: landscape) {
+    .grid { grid-template-columns: repeat(4, 1fr); }
+    .tile { min-height: 90px; }
+    .tile .emoji { font-size: 2.4rem; }
+    #quickbar .tile { min-height: 60px; }
+  }
+
+  /* ── Larger iPads ── */
+  @media (min-width: 1024px) {
+    .grid { grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    .tile { min-height: 120px; padding: 16px 12px; }
+    .tile .emoji { font-size: 3.2rem; }
+    .tile .label { font-size: 1.2rem; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Quick Access Bar -->
+  <div id="quickbar">
+    <div class="tile qb-yes" onclick="speak('Yes')" role="button" aria-label="Yes">
+      <span class="emoji">👍</span><span class="label">Yes</span>
+    </div>
+    <div class="tile qb-no" onclick="speak('No')" role="button" aria-label="No">
+      <span class="emoji">👎</span><span class="label">No</span>
+    </div>
+    <div class="tile qb-help" onclick="speak('I need help')" role="button" aria-label="Help">
+      <span class="emoji">🆘</span><span class="label">Help</span>
+    </div>
+    <div class="tile qb-pain" onclick="speak('I am in pain')" role="button" aria-label="Pain">
+      <span class="emoji">😣</span><span class="label">Pain</span>
+    </div>
+    <div class="tile qb-thanks" onclick="speak('Thank you')" role="button" aria-label="Thank you">
+      <span class="emoji">🙏</span><span class="label">Thanks</span>
+    </div>
+  </div>
+
+  <!-- Message Bar -->
+  <div id="message-bar">
+    <div id="message-display">Tap a button to speak</div>
+    <button id="speak-btn" onclick="replayLast()" aria-label="Replay">🔊</button>
+    <button id="clear-btn" onclick="clearMessage()" aria-label="Clear">✕</button>
+  </div>
+
+  <!-- Category Tabs -->
+  <div id="tabs">
+    <div class="tab active" onclick="showCategory('needs')">🍽 Needs</div>
+    <div class="tab" onclick="showCategory('pain')">🩹 Pain</div>
+    <div class="tab" onclick="showCategory('feelings')">💙 Feelings</div>
+    <div class="tab" onclick="showCategory('people')">👤 People</div>
+    <div class="tab" onclick="showCategory('actions')">✋ Actions</div>
+    <div class="tab" onclick="showCategory('comfort')">🛋 Comfort</div>
+  </div>
+
+  <!-- Tile Grid -->
+  <div id="grid-container">
+    <div id="grid" class="grid"></div>
+  </div>
+
+</div>
+
+<script>
+// ── Phrase Data ──
+const categories = {
+  needs: {
+    className: 'cat-needs',
+    tiles: [
+      { emoji: '💧', label: 'Water',      phrase: 'I need water' },
+      { emoji: '🍽', label: 'Hungry',      phrase: 'I am hungry' },
+      { emoji: '🚽', label: 'Bathroom',    phrase: 'I need the bathroom' },
+      { emoji: '💊', label: 'Medicine',    phrase: 'I need my medicine' },
+      { emoji: '👓', label: 'Glasses',     phrase: 'I need my glasses' },
+      { emoji: '📱', label: 'Phone',       phrase: 'I want my phone' },
+      { emoji: '🔇', label: 'Quiet',       phrase: 'I need quiet please' },
+      { emoji: '💡', label: 'Light On',    phrase: 'Please turn the light on' },
+      { emoji: '🌙', label: 'Light Off',   phrase: 'Please turn the light off' },
+      { emoji: '🧣', label: 'Cold',        phrase: 'I am cold' },
+      { emoji: '🥵', label: 'Hot',         phrase: 'I am hot' },
+      { emoji: '📺', label: 'TV',          phrase: 'I want to watch TV' },
+    ]
+  },
+  pain: {
+    className: 'cat-pain',
+    tiles: [
+      { emoji: '🤕', label: 'Head',        phrase: 'My head hurts' },
+      { emoji: '😮‍💨', label: 'Chest',     phrase: 'My chest hurts' },
+      { emoji: '🫄', label: 'Stomach',     phrase: 'My stomach hurts' },
+      { emoji: '🦵', label: 'Legs',        phrase: 'My legs hurt' },
+      { emoji: '🦴', label: 'Back',        phrase: 'My back hurts' },
+      { emoji: '💪', label: 'Arm',         phrase: 'My arm hurts' },
+      { emoji: '😰', label: 'A Lot',       phrase: 'The pain is very bad' },
+      { emoji: '😕', label: 'A Little',    phrase: 'The pain is mild' },
+      { emoji: '📈', label: 'Worse',       phrase: 'The pain is getting worse' },
+      { emoji: '📉', label: 'Better',      phrase: 'The pain is getting better' },
+      { emoji: '😴', label: 'Can\'t Sleep', phrase: 'The pain is keeping me awake' },
+      { emoji: '🤢', label: 'Nausea',      phrase: 'I feel nauseous' },
+    ]
+  },
+  feelings: {
+    className: 'cat-feelings',
+    tiles: [
+      { emoji: '😊', label: 'Happy',       phrase: 'I feel happy' },
+      { emoji: '😢', label: 'Sad',         phrase: 'I feel sad' },
+      { emoji: '😟', label: 'Worried',     phrase: 'I feel worried' },
+      { emoji: '😠', label: 'Frustrated',  phrase: 'I feel frustrated' },
+      { emoji: '😴', label: 'Tired',       phrase: 'I am very tired' },
+      { emoji: '😰', label: 'Scared',      phrase: 'I feel scared' },
+      { emoji: '🥰', label: 'Loved',       phrase: 'I feel loved' },
+      { emoji: '😔', label: 'Lonely',      phrase: 'I feel lonely' },
+      { emoji: '😤', label: 'Angry',       phrase: 'I feel angry' },
+      { emoji: '😌', label: 'Calm',        phrase: 'I feel calm' },
+      { emoji: '🥱', label: 'Bored',       phrase: 'I am bored' },
+      { emoji: '🤗', label: 'Good',        phrase: 'I feel good today' },
+    ]
+  },
+  people: {
+    className: 'cat-people',
+    tiles: [
+      { emoji: '👩‍⚕️', label: 'Nurse',    phrase: 'I need the nurse' },
+      { emoji: '🧑‍⚕️', label: 'Doctor',   phrase: 'I need the doctor' },
+      { emoji: '👨‍👩‍👧', label: 'Family', phrase: 'I want to see my family' },
+      { emoji: '👦', label: 'Gordon',      phrase: 'I want to see Gordon' },
+      { emoji: '🤝', label: 'Visitor',     phrase: 'Is someone coming to visit?' },
+      { emoji: '🙋', label: 'Someone',     phrase: 'I need someone to come here' },
+      { emoji: '👋', label: 'Alone',       phrase: 'I want to be alone for a while' },
+      { emoji: '🧑‍🤝‍🧑', label: 'Company', phrase: 'I want some company' },
+      { emoji: '📞', label: 'Call',        phrase: 'I want to call someone' },
+    ]
+  },
+  actions: {
+    className: 'cat-actions',
+    tiles: [
+      { emoji: '🛏', label: 'Lie Down',    phrase: 'I want to lie down' },
+      { emoji: '🪑', label: 'Sit Up',      phrase: 'Help me sit up' },
+      { emoji: '🚶', label: 'Walk',        phrase: 'I want to try walking' },
+      { emoji: '🔄', label: 'Turn Over',   phrase: 'Help me turn over' },
+      { emoji: '🚿', label: 'Wash',        phrase: 'I want to wash up' },
+      { emoji: '👕', label: 'Change',      phrase: 'I want to change clothes' },
+      { emoji: '🪥', label: 'Teeth',       phrase: 'I want to brush my teeth' },
+      { emoji: '🍴', label: 'Eat',         phrase: 'I am ready to eat' },
+      { emoji: '🛑', label: 'Stop',        phrase: 'Please stop' },
+      { emoji: '⏳', label: 'Wait',        phrase: 'Please wait a moment' },
+      { emoji: '🔁', label: 'Again',       phrase: 'Please do that again' },
+      { emoji: '↩️', label: 'Go Back',     phrase: 'I changed my mind' },
+    ]
+  },
+  comfort: {
+    className: 'cat-comfort',
+    tiles: [
+      { emoji: '🛏', label: 'Pillow',      phrase: 'Please adjust my pillow' },
+      { emoji: '🧊', label: 'Ice',         phrase: 'I want some ice' },
+      { emoji: '☕', label: 'Warm Drink',  phrase: 'I want a warm drink' },
+      { emoji: '🫗', label: 'Straw',       phrase: 'I need a straw' },
+      { emoji: '📻', label: 'Music',       phrase: 'I want to listen to music' },
+      { emoji: '🪟', label: 'Window',      phrase: 'Please open the window' },
+      { emoji: '🚪', label: 'Door',        phrase: 'Please close the door' },
+      { emoji: '🤧', label: 'Tissue',      phrase: 'I need a tissue' },
+      { emoji: '🧴', label: 'Lotion',      phrase: 'I need lotion please' },
+      { emoji: '😮‍💨', label: 'Fresh Air', phrase: 'I want fresh air' },
+      { emoji: '❤️', label: 'Hug',        phrase: 'I would like a hug' },
+      { emoji: '🙂', label: 'I\'m OK',    phrase: 'I am okay, don\'t worry' },
+    ]
+  }
+};
+
+let currentCategory = 'needs';
+let lastPhrase = '';
+
+// ── Speech ──
+function speak(phrase) {
+  lastPhrase = phrase;
+
+  // Update display
+  document.getElementById('message-display').textContent = phrase;
+
+  // Speak it
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(phrase);
+    utter.rate = 0.9;
+    utter.pitch = 1.0;
+    utter.volume = 1.0;
+    // Prefer a clear English voice
+    const voices = window.speechSynthesis.getVoices();
+    const preferred = voices.find(v => v.name.includes('Samantha')) ||
+                      voices.find(v => v.lang.startsWith('en') && v.localService) ||
+                      voices[0];
+    if (preferred) utter.voice = preferred;
+    window.speechSynthesis.speak(utter);
+  }
+
+  // Flash the tile
+  if (event && event.currentTarget) {
+    const tile = event.currentTarget;
+    tile.classList.add('spoken');
+    setTimeout(() => tile.classList.remove('spoken'), 600);
+  }
+}
+
+function replayLast() {
+  if (lastPhrase) speak(lastPhrase);
+}
+
+function clearMessage() {
+  lastPhrase = '';
+  document.getElementById('message-display').textContent = 'Tap a button to speak';
+  window.speechSynthesis.cancel();
+}
+
+// ── Category Navigation ──
+function showCategory(name) {
+  currentCategory = name;
+
+  // Update tabs
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+
+  renderGrid();
+}
+
+function renderGrid() {
+  const cat = categories[currentCategory];
+  const grid = document.getElementById('grid');
+  grid.className = 'grid ' + cat.className;
+
+  grid.innerHTML = cat.tiles.map(t =>
+    `<div class="tile" onclick="speak('${t.phrase.replace(/'/g, "\\'")}')" role="button" aria-label="${t.phrase}">
+      <span class="emoji">${t.emoji}</span>
+      <span class="label">${t.label}</span>
+    </div>`
+  ).join('');
+}
+
+// ── Init ──
+// Preload voices (Safari needs this)
+if ('speechSynthesis' in window) {
+  speechSynthesis.getVoices();
+  speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+}
+
+renderGrid();
+</script>
+</body>
+</html>
