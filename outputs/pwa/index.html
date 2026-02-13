@@ -1,0 +1,2150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Talk">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Talk - Communication Aid</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --card: #0f3460;
+    --accent: #e94560;
+    --text: #ffffff;
+    --text-dim: #a0a0b8;
+    --success: #2ecc71;
+    --warning: #f39c12;
+    --danger: #e74c3c;
+    --info: #3498db;
+    --radius: 16px;
+    --gap: 10px;
+  }
+
+  html, body {
+    height: 100%; width: 100%;
+    overflow: hidden;
+    font-family: -apple-system, "Helvetica Neue", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    touch-action: manipulation;
+    -webkit-user-select: none; user-select: none;
+  }
+
+  /* -- Layout -- */
+  #app {
+    display: flex; flex-direction: column;
+    height: 100%; width: 100%;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  /* -- Quick Bar (always visible) -- */
+  #quickbar {
+    display: flex; gap: var(--gap);
+    padding: var(--gap);
+    flex-shrink: 0;
+  }
+  #quickbar .tile {
+    flex: 1;
+    min-height: 70px;
+    font-size: 1.1rem;
+    border-radius: var(--radius);
+  }
+  #quickbar .tile .emoji { font-size: 2rem; }
+
+  .qb-yes   { background: var(--success); }
+  .qb-no    { background: var(--danger); }
+  .qb-help  { background: var(--warning); color: #222; }
+  .qb-pain  { background: var(--accent); }
+  .qb-thanks { background: var(--info); }
+
+  /* -- Category Tabs -- */
+  #tabs {
+    display: flex; gap: 6px;
+    padding: 0 var(--gap);
+    flex-shrink: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tab {
+    flex-shrink: 0;
+    padding: 10px 18px;
+    font-size: 1rem; font-weight: 600;
+    background: var(--surface);
+    color: var(--text-dim);
+    border: 2px solid transparent;
+    border-bottom: none;
+    border-radius: var(--radius) var(--radius) 0 0;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .tab.active {
+    background: var(--card);
+    color: var(--text);
+    border-color: var(--accent);
+  }
+
+  /* -- Message Display -- */
+  #message-bar {
+    display: flex; align-items: center; gap: var(--gap);
+    padding: 8px var(--gap);
+    flex-shrink: 0;
+    min-height: 52px;
+  }
+  #message-display {
+    flex: 1;
+    background: var(--surface);
+    border: 2px solid var(--card);
+    border-radius: var(--radius);
+    padding: 10px 16px;
+    font-size: 1.3rem;
+    font-weight: 600;
+    min-height: 44px;
+    display: flex; align-items: center;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  #clear-btn {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: var(--danger);
+    border: none;
+    color: white;
+    font-size: 1.6rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #speak-btn {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: var(--success);
+    border: none;
+    color: white;
+    font-size: 1.6rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* -- Tile Grid -- */
+  #grid-container {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: var(--gap);
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--gap);
+  }
+
+  /* -- Tile -- */
+  .tile {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 4px;
+    padding: 12px 8px;
+    min-height: 100px;
+    background: var(--card);
+    border: 3px solid transparent;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: transform 0.1s, border-color 0.15s, opacity 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+  }
+  .tile:active {
+    transform: scale(0.95);
+    border-color: var(--accent);
+    opacity: 0.85;
+  }
+  .tile .emoji {
+    font-size: 2.8rem;
+    line-height: 1.1;
+  }
+  .tile .label {
+    font-size: 1.05rem;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.2;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  /* color-coded category backgrounds */
+  .cat-needs    .tile { background: #1a5276; }
+  .cat-pain     .tile { background: #7b241c; }
+  .cat-feelings .tile { background: #1e8449; }
+  .cat-people   .tile { background: #6c3483; }
+  .cat-actions  .tile { background: #b9770e; color: #fff; }
+  .cat-comfort  .tile { background: #117a65; }
+  .cat-custom1  .tile { background: #1b2631; }
+  .cat-custom2  .tile { background: #6e2c00; }
+  .cat-custom3  .tile { background: #2c3e50; }
+  .cat-custom4  .tile { background: #0b5345; }
+
+  /* -- Spoken flash -- */
+  .tile.spoken {
+    border-color: var(--success) !important;
+    box-shadow: 0 0 12px rgba(46,204,113,0.5);
+  }
+
+  /* -- Landscape tweaks -- */
+  @media (orientation: landscape) {
+    .grid { grid-template-columns: repeat(4, 1fr); }
+    .tile { min-height: 90px; }
+    .tile .emoji { font-size: 2.4rem; }
+    #quickbar .tile { min-height: 60px; }
+  }
+
+  /* -- Larger iPads -- */
+  @media (min-width: 1024px) {
+    .grid { grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    .tile { min-height: 120px; padding: 16px 12px; }
+    .tile .emoji { font-size: 3.2rem; }
+    .tile .label { font-size: 1.2rem; }
+  }
+
+  /* ============================================= */
+  /* == RecentsEngine CSS (inlined)              == */
+  /* ============================================= */
+  #recents-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px var(--gap, 10px);
+    flex-shrink: 0;
+    min-height: 62px;
+    background: var(--surface, #16213e);
+    border-bottom: 2px solid var(--card, #0f3460);
+  }
+  #recents-bar.empty { display: none; }
+
+  #recents-label {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim, #a0a0b8);
+    writing-mode: vertical-lr;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    padding: 0 2px;
+  }
+
+  #recents-scroll {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    flex: 1;
+    scrollbar-width: none;
+  }
+  #recents-scroll::-webkit-scrollbar { display: none; }
+
+  .recent-tile {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-width: 72px;
+    max-width: 90px;
+    min-height: 50px;
+    padding: 6px 10px;
+    background: var(--card, #0f3460);
+    border: 2px solid transparent;
+    border-radius: var(--radius, 16px);
+    cursor: pointer;
+    transition: transform 0.1s, border-color 0.15s, opacity 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .recent-tile:active {
+    transform: scale(0.93);
+    border-color: var(--accent, #e94560);
+    opacity: 0.85;
+  }
+  .recent-tile .recent-emoji {
+    font-size: 1.6rem;
+    line-height: 1.1;
+  }
+  .recent-tile .recent-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-align: center;
+    line-height: 1.15;
+    color: var(--text, #ffffff);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 80px;
+  }
+  .recent-tile .recent-time {
+    font-size: 0.55rem;
+    color: var(--text-dim, #a0a0b8);
+    white-space: nowrap;
+  }
+
+  #recents-clear-btn {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--card, #0f3460);
+    border: 1px solid var(--text-dim, #a0a0b8);
+    color: var(--text-dim, #a0a0b8);
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.15s;
+  }
+  #recents-clear-btn:active { opacity: 0.6; }
+
+  @media (orientation: landscape) {
+    #recents-bar { min-height: 54px; padding: 4px var(--gap, 10px); }
+    .recent-tile { min-height: 44px; min-width: 64px; padding: 4px 8px; }
+    .recent-tile .recent-emoji { font-size: 1.3rem; }
+  }
+
+  /* ============================================= */
+  /* == FavoritesSystem CSS (inlined)            == */
+  /* ============================================= */
+  .fav-badge {
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    font-size: 0.85rem;
+    line-height: 1;
+    color: #e94560;
+    pointer-events: none;
+    filter: drop-shadow(0 0 2px rgba(233,69,96,0.6));
+    z-index: 2;
+  }
+
+  .fav-toast {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--surface, #16213e);
+    color: var(--text, #ffffff);
+    border: 2px solid var(--accent, #e94560);
+    border-radius: var(--radius, 16px);
+    padding: 12px 24px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    white-space: nowrap;
+    z-index: 9999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  }
+  .fav-toast.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .fav-heart-burst {
+    position: fixed;
+    pointer-events: none;
+    z-index: 9998;
+    font-size: 2.4rem;
+    animation: fav-burst 0.7s ease-out forwards;
+  }
+  @keyframes fav-burst {
+    0%   { opacity: 1; transform: scale(0.5); }
+    50%  { opacity: 1; transform: scale(1.4); }
+    100% { opacity: 0; transform: scale(1.8) translateY(-30px); }
+  }
+
+  .cat-favorites .tile {
+    background: #2c1a3e;
+    border: 2px solid transparent;
+  }
+  .cat-favorites .tile:active {
+    border-color: var(--accent, #e94560);
+  }
+
+  .fav-tile-removing {
+    animation: fav-shake 0.3s ease-in-out;
+  }
+  @keyframes fav-shake {
+    0%, 100% { transform: translateX(0); }
+    25%      { transform: translateX(-4px) rotate(-1deg); }
+    75%      { transform: translateX(4px) rotate(1deg); }
+  }
+
+  .fav-confirm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.65);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .fav-confirm-dialog {
+    background: var(--surface, #16213e);
+    border: 2px solid var(--accent, #e94560);
+    border-radius: var(--radius, 16px);
+    padding: 28px 32px;
+    text-align: center;
+    max-width: 340px;
+    width: 85%;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+  }
+  .fav-confirm-dialog p {
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+    line-height: 1.4;
+    color: var(--text, #ffffff);
+  }
+  .fav-confirm-dialog .phrase-preview {
+    font-size: 1rem;
+    color: var(--text-dim, #a0a0b8);
+    margin-bottom: 20px;
+  }
+  .fav-confirm-btns {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+  }
+  .fav-confirm-btns button {
+    flex: 1;
+    padding: 14px 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+    border: none;
+    border-radius: var(--radius, 16px);
+    cursor: pointer;
+    color: #fff;
+    min-height: 52px;
+  }
+  .fav-confirm-btns .btn-cancel {
+    background: var(--card, #0f3460);
+  }
+  .fav-confirm-btns .btn-remove {
+    background: var(--danger, #e74c3c);
+  }
+
+  .fav-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-dim, #a0a0b8);
+    font-size: 1.15rem;
+    line-height: 1.6;
+  }
+  .fav-empty .hint {
+    font-size: 0.95rem;
+    margin-top: 12px;
+    opacity: 0.7;
+  }
+
+  .fav-pressing {
+    opacity: 0.7 !important;
+    transition: opacity 0.15s ease;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Quick Access Bar -->
+  <div id="quickbar">
+    <div class="tile qb-yes" onclick="speak('Aye')" role="button" aria-label="Aye">
+      <span class="emoji">&#x1F44D;</span><span class="label">Aye</span>
+    </div>
+    <div class="tile qb-no" onclick="speak('Naw')" role="button" aria-label="Naw">
+      <span class="emoji">&#x1F44E;</span><span class="label">Naw</span>
+    </div>
+    <div class="tile qb-help" onclick="speak('I need help')" role="button" aria-label="Help">
+      <span class="emoji">&#x1F198;</span><span class="label">Help</span>
+    </div>
+    <div class="tile qb-pain" onclick="speak('I\'m in pain')" role="button" aria-label="Pain">
+      <span class="emoji">&#x1F623;</span><span class="label">Pain</span>
+    </div>
+    <div class="tile qb-thanks" onclick="speak('Thank you')" role="button" aria-label="Thank you">
+      <span class="emoji">&#x1F64F;</span><span class="label">Thanks</span>
+    </div>
+  </div>
+
+  <!-- Message Bar -->
+  <div id="message-bar">
+    <div id="message-display">Tap a button to speak</div>
+    <button id="speak-btn" onclick="replayLast()" aria-label="Replay">&#x1F50A;</button>
+    <button id="clear-btn" onclick="clearMessage()" aria-label="Clear">&#x2715;</button>
+  </div>
+
+  <!-- Recent Requests Bar -->
+  <div id="recents-container"></div>
+
+  <!-- Category Tabs (rendered dynamically) -->
+  <div id="tabs"></div>
+
+  <!-- Tile Grid -->
+  <div id="grid-container">
+    <div id="grid" class="grid"></div>
+  </div>
+
+</div>
+
+<script>
+// =====================================================
+// == RecentsEngine Module (inlined)                  ==
+// =====================================================
+var RecentsEngine = (function () {
+  'use strict';
+
+  var STORAGE_KEY = 'gordon-recents';
+  var MAX_ITEMS = 10;
+  var _containerId = null;
+
+  // Storage helpers
+  function _load() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      var parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed;
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function _save(items) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    } catch (e) { /* silent */ }
+  }
+
+  function _shortLabel(phrase) {
+    var stripped = phrase
+      .replace(/^(I need|I want|I'm|I am|I feel|I'd like|Please|Help me|My)\s+/i, '')
+      .replace(/^(the|to|a|some|my|in)\s+/i, '');
+    stripped = stripped.charAt(0).toUpperCase() + stripped.slice(1);
+    if (stripped.length > 16) {
+      stripped = stripped.slice(0, 14) + '\u2026';
+    }
+    return stripped;
+  }
+
+  function _relativeTime(ts) {
+    var diff = Date.now() - ts;
+    var secs = Math.floor(diff / 1000);
+    if (secs < 60) return 'now';
+    var mins = Math.floor(secs / 60);
+    if (mins < 60) return mins + 'm';
+    var hrs = Math.floor(mins / 60);
+    if (hrs < 24) return hrs + 'h';
+    var days = Math.floor(hrs / 24);
+    return days + 'd';
+  }
+
+  function _esc(str) {
+    var div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function add(phrase, emoji, category) {
+    if (!phrase) return;
+    var items = _load();
+    items = items.filter(function (item) { return item.phrase !== phrase; });
+    items.unshift({ phrase: phrase, emoji: emoji || '', category: category || '', ts: Date.now() });
+    if (items.length > MAX_ITEMS) { items = items.slice(0, MAX_ITEMS); }
+    _save(items);
+    if (_containerId) { _renderInto(_containerId); }
+  }
+
+  function getAll() { return _load(); }
+
+  function clear() {
+    _save([]);
+    if (_containerId) { _renderInto(_containerId); }
+  }
+
+  function _renderInto(containerId) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    var items = _load();
+    var bar = document.getElementById('recents-bar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'recents-bar';
+      container.appendChild(bar);
+    }
+    if (items.length === 0) {
+      bar.classList.add('empty');
+      bar.innerHTML = '';
+      return;
+    }
+    bar.classList.remove('empty');
+    var html = '<div id="recents-label">RECENT</div>';
+    html += '<div id="recents-scroll">';
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      var label = _shortLabel(item.phrase);
+      var escapedPhrase = _esc(item.phrase).replace(/'/g, '&#39;');
+      var emoji = item.emoji || '\uD83D\uDD01';
+      html += '<div class="recent-tile" '
+        + 'onclick="RecentsEngine._speak(\'' + escapedPhrase + '\')" '
+        + 'role="button" '
+        + 'aria-label="' + _esc(item.phrase) + '">'
+        + '<span class="recent-emoji">' + emoji + '</span>'
+        + '<span class="recent-label">' + _esc(label) + '</span>'
+        + '<span class="recent-time">' + _relativeTime(item.ts) + '</span>'
+        + '</div>';
+    }
+    html += '</div>';
+    html += '<button id="recents-clear-btn" onclick="RecentsEngine.clear()" aria-label="Clear recents" title="Clear recents">\u2715</button>';
+    bar.innerHTML = html;
+  }
+
+  function renderBar(containerId) {
+    _containerId = containerId;
+    _renderInto(containerId);
+  }
+
+  function _speak(phrase) {
+    if (typeof window.speak === 'function') {
+      window.speak(phrase);
+    } else if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      var utter = new SpeechSynthesisUtterance(phrase);
+      utter.rate = 0.9;
+      window.speechSynthesis.speak(utter);
+    }
+  }
+
+  return {
+    add: add, getAll: getAll, clear: clear, renderBar: renderBar, _speak: _speak
+  };
+})();
+
+// =====================================================
+// == FavoritesSystem Module (inlined)                ==
+// =====================================================
+var FavoritesSystem = (function () {
+  'use strict';
+
+  var STORAGE_KEY = 'gordon-favorites';
+  var LONG_PRESS_MS = 500;
+  var TOAST_DURATION_MS = 1800;
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+  }
+
+  function save(arr) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(arr)); } catch (e) { /* silent */ }
+  }
+
+  function escapeHTML(str) {
+    var div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // Toast
+  var _toastEl = null;
+  var _toastTimer = null;
+
+  function ensureToast() {
+    if (_toastEl) return _toastEl;
+    _toastEl = document.createElement('div');
+    _toastEl.className = 'fav-toast';
+    document.body.appendChild(_toastEl);
+    return _toastEl;
+  }
+
+  function showToast(msg) {
+    var el = ensureToast();
+    clearTimeout(_toastTimer);
+    el.textContent = msg;
+    el.classList.remove('visible');
+    void el.offsetWidth;
+    el.classList.add('visible');
+    _toastTimer = setTimeout(function () { el.classList.remove('visible'); }, TOAST_DURATION_MS);
+  }
+
+  function heartBurst(x, y) {
+    var el = document.createElement('div');
+    el.className = 'fav-heart-burst';
+    el.textContent = '\u2764\uFE0F';
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    document.body.appendChild(el);
+    el.addEventListener('animationend', function () { el.remove(); });
+  }
+
+  function confirmRemove(phrase, onConfirm) {
+    var overlay = document.createElement('div');
+    overlay.className = 'fav-confirm-overlay';
+    var favs = load();
+    var fav = null;
+    for (var i = 0; i < favs.length; i++) {
+      if (favs[i].phrase === phrase) { fav = favs[i]; break; }
+    }
+    var displayLabel = fav ? (fav.emoji + ' ' + fav.label) : phrase;
+    overlay.innerHTML =
+      '<div class="fav-confirm-dialog">' +
+        '<p>Remove from favourites?</p>' +
+        '<div class="phrase-preview">' + escapeHTML(displayLabel) + '</div>' +
+        '<div class="fav-confirm-btns">' +
+          '<button class="btn-cancel">Keep</button>' +
+          '<button class="btn-remove">Remove</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+    var cancel = overlay.querySelector('.btn-cancel');
+    var remove = overlay.querySelector('.btn-remove');
+    function closeOverlay() { overlay.remove(); }
+    cancel.addEventListener('click', closeOverlay);
+    cancel.addEventListener('touchend', function (e) { e.preventDefault(); closeOverlay(); });
+    remove.addEventListener('click', function () { closeOverlay(); onConfirm(); });
+    remove.addEventListener('touchend', function (e) { e.preventDefault(); closeOverlay(); onConfirm(); });
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) closeOverlay(); });
+  }
+
+  function attachLongPress(tileEl, opts) {
+    var timer = null;
+    var startX = 0, startY = 0;
+    var fired = false;
+    var MOVE_THRESHOLD = 10;
+
+    function onStart(e) {
+      fired = false;
+      var touch = e.touches ? e.touches[0] : e;
+      startX = touch.clientX;
+      startY = touch.clientY;
+      timer = setTimeout(function () {
+        fired = true;
+        tileEl.classList.remove('fav-pressing');
+        if (opts.onLongPress) { opts.onLongPress(touch.clientX, touch.clientY); }
+      }, LONG_PRESS_MS);
+      tileEl.classList.add('fav-pressing');
+    }
+
+    function onMove(e) {
+      if (!timer) return;
+      var touch = e.touches ? e.touches[0] : e;
+      var dx = Math.abs(touch.clientX - startX);
+      var dy = Math.abs(touch.clientY - startY);
+      if (dx > MOVE_THRESHOLD || dy > MOVE_THRESHOLD) {
+        clearTimeout(timer); timer = null;
+        tileEl.classList.remove('fav-pressing');
+      }
+    }
+
+    function onEnd(e) {
+      clearTimeout(timer); timer = null;
+      tileEl.classList.remove('fav-pressing');
+      if (fired) { e.preventDefault(); e.stopPropagation(); fired = false; }
+    }
+
+    tileEl.addEventListener('touchstart', onStart, { passive: true });
+    tileEl.addEventListener('touchmove', onMove, { passive: true });
+    tileEl.addEventListener('touchend', onEnd, false);
+    tileEl.addEventListener('touchcancel', onEnd, false);
+    tileEl.addEventListener('mousedown', onStart);
+    tileEl.addEventListener('mousemove', onMove);
+    tileEl.addEventListener('mouseup', onEnd);
+
+    return function cleanup() {
+      clearTimeout(timer);
+      tileEl.removeEventListener('touchstart', onStart);
+      tileEl.removeEventListener('touchmove', onMove);
+      tileEl.removeEventListener('touchend', onEnd);
+      tileEl.removeEventListener('touchcancel', onEnd);
+      tileEl.removeEventListener('mousedown', onStart);
+      tileEl.removeEventListener('mousemove', onMove);
+      tileEl.removeEventListener('mouseup', onEnd);
+    };
+  }
+
+  var _categoryCleanups = [];
+
+  var Fav = {
+    init: function () { /* CSS is inlined in <style>, nothing to inject */ },
+
+    add: function (phrase, emoji, label) {
+      var favs = load();
+      for (var i = 0; i < favs.length; i++) {
+        if (favs[i].phrase === phrase) return false;
+      }
+      favs.push({ phrase: phrase, emoji: emoji || '', label: label || phrase, addedAt: new Date().toISOString() });
+      save(favs);
+      return true;
+    },
+
+    remove: function (phrase) {
+      var favs = load();
+      var newFavs = [];
+      var found = false;
+      for (var i = 0; i < favs.length; i++) {
+        if (favs[i].phrase === phrase) { found = true; } else { newFavs.push(favs[i]); }
+      }
+      if (found) save(newFavs);
+      return found;
+    },
+
+    getAll: function () { return load(); },
+
+    isFavorite: function (phrase) {
+      var favs = load();
+      for (var i = 0; i < favs.length; i++) {
+        if (favs[i].phrase === phrase) return true;
+      }
+      return false;
+    },
+
+    toggle: function (phrase, emoji, label) {
+      if (Fav.isFavorite(phrase)) { Fav.remove(phrase); return false; }
+      else { Fav.add(phrase, emoji, label); return true; }
+    },
+
+    renderTab: function (containerId, speakFn) {
+      var container = document.getElementById(containerId);
+      if (!container) return;
+      container.className = 'grid cat-favorites';
+      var favs = load();
+      if (favs.length === 0) {
+        container.innerHTML =
+          '<div class="fav-empty" style="grid-column: 1 / -1;">' +
+            '<div style="font-size: 2.5rem; margin-bottom: 12px;">&#9733;</div>' +
+            '<div>No favourites yet</div>' +
+            '<div class="hint">Long-press any tile to add it here</div>' +
+          '</div>';
+        return;
+      }
+      container.innerHTML = '';
+      favs.forEach(function (fav) {
+        var tile = document.createElement('div');
+        tile.className = 'tile';
+        tile.setAttribute('role', 'button');
+        tile.setAttribute('aria-label', fav.phrase);
+        tile.innerHTML =
+          '<span class="fav-badge">&#9733;</span>' +
+          '<span class="emoji">' + fav.emoji + '</span>' +
+          '<span class="label">' + escapeHTML(fav.label) + '</span>';
+        tile.addEventListener('click', function () {
+          speakFn(fav.phrase);
+          tile.classList.add('spoken');
+          setTimeout(function () { tile.classList.remove('spoken'); }, 600);
+        });
+        attachLongPress(tile, {
+          onLongPress: function () {
+            tile.classList.add('fav-tile-removing');
+            setTimeout(function () { tile.classList.remove('fav-tile-removing'); }, 300);
+            confirmRemove(fav.phrase, function () {
+              Fav.remove(fav.phrase);
+              showToast('Removed from favourites');
+              Fav.renderTab(containerId, speakFn);
+            });
+          }
+        });
+        container.appendChild(tile);
+      });
+    },
+
+    attachToGrid: function (gridId, getTileData) {
+      _categoryCleanups.forEach(function (fn) { fn(); });
+      _categoryCleanups = [];
+      var grid = document.getElementById(gridId);
+      if (!grid) return;
+      var tiles = grid.querySelectorAll('.tile');
+      tiles.forEach(function (tile) {
+        var data = getTileData(tile);
+        if (!data) return;
+        Fav.updateBadge(tile, data.phrase);
+        var cleanup = attachLongPress(tile, {
+          onLongPress: function (cx, cy) {
+            var wasAdded = Fav.toggle(data.phrase, data.emoji, data.label);
+            if (wasAdded) { heartBurst(cx, cy); showToast('Added to favourites'); }
+            else { showToast('Removed from favourites'); }
+            Fav.updateBadge(tile, data.phrase);
+          }
+        });
+        _categoryCleanups.push(cleanup);
+      });
+    },
+
+    updateBadge: function (tileEl, phrase) {
+      var existing = tileEl.querySelector('.fav-badge');
+      if (Fav.isFavorite(phrase)) {
+        if (!existing) {
+          var badge = document.createElement('span');
+          badge.className = 'fav-badge';
+          badge.innerHTML = '&#9733;';
+          tileEl.appendChild(badge);
+        }
+      } else {
+        if (existing) existing.remove();
+      }
+    },
+
+    count: function () { return load().length; },
+
+    savePhrase: function (phrase, emoji) {
+      if (!phrase || phrase.trim() === '') return false;
+      phrase = phrase.trim();
+      var words = phrase.split(/\s+/);
+      var label = words.slice(0, 3).join(' ');
+      if (words.length > 3) label += '...';
+      return Fav.add(phrase, emoji || '\uD83D\uDCAC', label);
+    }
+  };
+
+  return Fav;
+})();
+
+// =====================================================
+// == AdminPanel Module (inlined)                     ==
+// =====================================================
+var AdminPanel = (function () {
+  'use strict';
+
+  var _defaultCategories = null;
+  var _categories = null;
+  var _renderGrid = null;
+  var _renderTabs = null;
+  var _isOpen = false;
+  var _currentSection = 'categories';
+  var _selectedCategory = null;
+  var _panelEl = null;
+  var _styleEl = null;
+  var _gearEl = null;
+  var _phraseEmoji = '\uD83D\uDE0A';
+
+  var STORAGE_KEY = 'gordon-config';
+  var ADMIN_ACCENT = '#8e44ad';
+  var ADMIN_ACCENT_LIGHT = '#a569bd';
+
+  var EMOJI_GROUPS = {
+    'Faces': ['\uD83D\uDE0A','\uD83D\uDE22','\uD83D\uDE1F','\uD83D\uDE20','\uD83D\uDE34','\uD83D\uDE30','\uD83E\uDD70','\uD83D\uDE14','\uD83D\uDE24','\uD83D\uDE0C','\uD83E\uDD71','\uD83E\uDD17','\uD83D\uDE23','\uD83D\uDE15','\uD83E\uDD22','\uD83E\uDD75','\uD83E\uDD15','\uD83D\uDE2E\u200D\uD83D\uDCA8'],
+    'Hands & Body': ['\uD83D\uDC4D','\uD83D\uDC4E','\uD83D\uDC4B','\uD83E\uDD1D','\uD83D\uDE4F','\u270B','\uD83D\uDCAA','\uD83E\uDDB5','\uD83E\uDDB4','\uD83D\uDC41','\uD83D\uDC42','\uD83E\uDEC1','\uD83E\uDDE0','\u2764\uFE0F','\uD83E\uDEC0'],
+    'People': ['\uD83D\uDC69\u200D\u2695\uFE0F','\uD83E\uDDD1\u200D\u2695\uFE0F','\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67','\uD83D\uDC66','\uD83D\uDC67','\uD83D\uDC69','\uD83D\uDC68','\uD83E\uDDD3','\uD83D\uDC74','\uD83D\uDC75','\uD83D\uDE4B','\uD83E\uDDD1\u200D\uD83E\uDD1D\u200D\uD83E\uDDD1','\uD83D\uDC64'],
+    'Medical': ['\uD83D\uDC8A','\uD83E\uDE79','\uD83E\uDE7A','\uD83E\uDE7C','\uD83C\uDFE5','\uD83E\uDDEA','\uD83D\uDC89','\uD83C\uDF21','\uD83E\uDE7B','\u267F','\uD83D\uDE91'],
+    'Objects': ['\uD83D\uDCA7','\uD83D\uDCF1','\uD83D\uDC53','\uD83D\uDCFA','\uD83D\uDCFB','\uD83D\uDCDE','\uD83D\uDD07','\uD83D\uDCA1','\uD83E\uDE91','\uD83D\uDECF','\uD83D\uDEAA','\uD83E\uDE9F','\uD83D\uDCC8','\uD83D\uDCC9','\uD83D\uDED1','\u23F3','\uD83D\uDD01','\u21A9\uFE0F'],
+    'Food & Drink': ['\uD83C\uDF7D','\uD83C\uDF74','\u2615','\uD83E\uDDCA','\uD83E\uDED7','\uD83E\uDD64','\uD83C\uDF4E','\uD83C\uDF4C','\uD83E\uDD63','\uD83C\uDF5E','\uD83E\uDD5A','\uD83E\uDDC1'],
+    'Comfort & Hygiene': ['\uD83D\uDECB','\uD83E\uDDE3','\uD83E\uDDF4','\uD83E\uDD27','\uD83E\uDE9B','\uD83D\uDEBF','\uD83D\uDC55','\uD83E\uDDFC','\uD83E\uDDFB','\uD83D\uDEC1'],
+    'Nature & Weather': ['\uD83C\uDF19','\u2600\uFE0F','\uD83C\uDF27','\uD83C\uDF08','\uD83C\uDF38','\uD83C\uDF43','\u2744\uFE0F','\uD83D\uDD25'],
+    'Symbols': ['\uD83C\uDD98','\u2715','\uD83D\uDD0A','\u2B50','\u2705','\u274C','\u26A0\uFE0F','\u2139\uFE0F','\uD83D\uDD04','\u2795','\u2796','\uD83C\uDFE0']
+  };
+
+  var CATEGORY_COLORS = [
+    { name: 'Blue', bg: '#1a5276', cls: 'cat-needs' },
+    { name: 'Red', bg: '#7b241c', cls: 'cat-pain' },
+    { name: 'Green', bg: '#1e8449', cls: 'cat-feelings' },
+    { name: 'Purple', bg: '#6c3483', cls: 'cat-people' },
+    { name: 'Gold', bg: '#b9770e', cls: 'cat-actions' },
+    { name: 'Teal', bg: '#117a65', cls: 'cat-comfort' },
+    { name: 'Navy', bg: '#1b2631', cls: 'cat-custom1' },
+    { name: 'Brown', bg: '#6e2c00', cls: 'cat-custom2' },
+    { name: 'Slate', bg: '#2c3e50', cls: 'cat-custom3' },
+    { name: 'Dark Green', bg: '#0b5345', cls: 'cat-custom4' }
+  ];
+
+  var CSS = '\
+#admin-panel-overlay {\
+  position: fixed; inset: 0; z-index: 9999;\
+  background: var(--bg, #1a1a2e); color: var(--text, #fff);\
+  display: flex; flex-direction: column;\
+  font-family: -apple-system, "Helvetica Neue", sans-serif;\
+  transform: translateY(100%);\
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);\
+  overflow: hidden; -webkit-user-select: none; user-select: none;\
+}\
+#admin-panel-overlay.open { transform: translateY(0); }\
+#admin-panel-overlay * { box-sizing: border-box; }\
+.admin-header {\
+  display: flex; align-items: center; justify-content: space-between;\
+  padding: 12px 16px; background: ' + ADMIN_ACCENT + ';\
+  flex-shrink: 0; min-height: 56px;\
+}\
+.admin-header h1 { font-size: 1.2rem; font-weight: 700; margin: 0; letter-spacing: 0.02em; }\
+.admin-close-btn {\
+  background: rgba(255,255,255,0.2); border: none; color: #fff;\
+  font-size: 1.4rem; width: 44px; height: 44px; border-radius: 50%;\
+  cursor: pointer; display: flex; align-items: center; justify-content: center;\
+}\
+.admin-close-btn:active { background: rgba(255,255,255,0.35); }\
+.admin-tabs {\
+  display: flex; gap: 2px; background: var(--surface, #16213e);\
+  flex-shrink: 0; overflow-x: auto; -webkit-overflow-scrolling: touch;\
+}\
+.admin-tab {\
+  flex: 1; min-width: 0; padding: 10px 8px; text-align: center;\
+  font-size: 0.8rem; font-weight: 600;\
+  background: var(--surface, #16213e); color: var(--text-dim, #a0a0b8);\
+  border: none; border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap;\
+}\
+.admin-tab.active {\
+  color: #fff; border-bottom-color: ' + ADMIN_ACCENT + ';\
+  background: rgba(142, 68, 173, 0.15);\
+}\
+.admin-content {\
+  flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 16px;\
+}\
+.admin-card {\
+  background: var(--surface, #16213e); border-radius: 12px;\
+  padding: 16px; margin-bottom: 12px;\
+}\
+.admin-card h2 { font-size: 1rem; margin: 0 0 12px 0; color: ' + ADMIN_ACCENT_LIGHT + '; }\
+.admin-card p {\
+  font-size: 0.85rem; color: var(--text-dim, #a0a0b8);\
+  margin: 0 0 8px 0; line-height: 1.4;\
+}\
+.admin-list { list-style: none; padding: 0; margin: 0; }\
+.admin-list-item {\
+  display: flex; align-items: center; gap: 10px;\
+  padding: 10px 12px; background: var(--card, #0f3460);\
+  border-radius: 10px; margin-bottom: 6px; min-height: 48px;\
+}\
+.admin-list-item .item-emoji { font-size: 1.5rem; flex-shrink: 0; width: 36px; text-align: center; }\
+.admin-list-item .item-text { flex: 1; min-width: 0; }\
+.admin-list-item .item-label { font-weight: 600; font-size: 0.95rem; }\
+.admin-list-item .item-sub {\
+  font-size: 0.75rem; color: var(--text-dim, #a0a0b8);\
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;\
+}\
+.admin-list-item .item-actions { display: flex; gap: 6px; flex-shrink: 0; }\
+.admin-icon-btn {\
+  width: 36px; height: 36px; border: none; border-radius: 8px;\
+  font-size: 1rem; cursor: pointer; display: flex;\
+  align-items: center; justify-content: center;\
+  color: #fff; background: rgba(255,255,255,0.1);\
+}\
+.admin-icon-btn:active { background: rgba(255,255,255,0.25); }\
+.admin-icon-btn.danger { background: rgba(231, 76, 60, 0.3); }\
+.admin-icon-btn.danger:active { background: rgba(231, 76, 60, 0.6); }\
+.admin-icon-btn.move-up, .admin-icon-btn.move-down { background: rgba(52, 152, 219, 0.3); }\
+.admin-btn {\
+  display: inline-flex; align-items: center; justify-content: center;\
+  gap: 6px; padding: 10px 20px; border: none; border-radius: 10px;\
+  font-size: 0.9rem; font-weight: 600; cursor: pointer;\
+  color: #fff; background: ' + ADMIN_ACCENT + '; min-height: 44px;\
+}\
+.admin-btn:active { opacity: 0.8; }\
+.admin-btn.secondary { background: rgba(255,255,255,0.12); }\
+.admin-btn.danger { background: var(--danger, #e74c3c); }\
+.admin-btn.success { background: var(--success, #2ecc71); }\
+.admin-btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }\
+.admin-field { margin-bottom: 12px; }\
+.admin-field label {\
+  display: block; font-size: 0.8rem; font-weight: 600;\
+  color: var(--text-dim, #a0a0b8); margin-bottom: 4px;\
+  text-transform: uppercase; letter-spacing: 0.04em;\
+}\
+.admin-field input, .admin-field textarea {\
+  width: 100%; padding: 10px 12px; background: var(--card, #0f3460);\
+  border: 2px solid rgba(255,255,255,0.1); border-radius: 8px;\
+  color: #fff; font-size: 1rem; font-family: inherit; outline: none;\
+}\
+.admin-field input:focus, .admin-field textarea:focus { border-color: ' + ADMIN_ACCENT + '; }\
+.admin-field textarea { min-height: 80px; resize: vertical; }\
+.emoji-picker-container {\
+  background: var(--card, #0f3460); border-radius: 10px;\
+  padding: 12px; margin-bottom: 12px; max-height: 300px; overflow-y: auto;\
+}\
+.emoji-picker-group-title {\
+  font-size: 0.75rem; font-weight: 700; color: ' + ADMIN_ACCENT_LIGHT + ';\
+  text-transform: uppercase; letter-spacing: 0.05em; margin: 8px 0 6px 0;\
+}\
+.emoji-picker-group-title:first-child { margin-top: 0; }\
+.emoji-picker-grid { display: flex; flex-wrap: wrap; gap: 4px; }\
+.emoji-pick {\
+  width: 44px; height: 44px; display: flex;\
+  align-items: center; justify-content: center;\
+  font-size: 1.5rem; border: 2px solid transparent;\
+  border-radius: 8px; cursor: pointer; background: none;\
+}\
+.emoji-pick:active, .emoji-pick.selected {\
+  border-color: ' + ADMIN_ACCENT + '; background: rgba(142, 68, 173, 0.25);\
+}\
+.admin-img-preview {\
+  width: 80px; height: 80px; border-radius: 10px;\
+  object-fit: cover; background: var(--card, #0f3460);\
+  border: 2px solid rgba(255,255,255,0.1);\
+}\
+.admin-modal-backdrop {\
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7);\
+  z-index: 10001; display: flex;\
+  align-items: center; justify-content: center; padding: 20px;\
+}\
+.admin-modal {\
+  background: var(--surface, #16213e); border-radius: 16px;\
+  padding: 24px; width: 100%; max-width: 500px;\
+  max-height: 85vh; overflow-y: auto; -webkit-overflow-scrolling: touch;\
+}\
+.admin-modal h3 { font-size: 1.1rem; margin: 0 0 16px 0; color: ' + ADMIN_ACCENT_LIGHT + '; }\
+.admin-toast {\
+  position: fixed; bottom: 80px; left: 50%;\
+  transform: translateX(-50%) translateY(20px);\
+  background: ' + ADMIN_ACCENT + '; color: #fff;\
+  padding: 12px 24px; border-radius: 12px;\
+  font-size: 0.9rem; font-weight: 600; z-index: 10002;\
+  opacity: 0; transition: opacity 0.3s, transform 0.3s; pointer-events: none;\
+}\
+.admin-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }\
+.admin-gear-icon {\
+  position: fixed; top: 10px; right: 10px;\
+  padding: 6px 12px;\
+  display: flex; align-items: center; justify-content: center; gap: 4px;\
+  font-size: 0.85rem; color: rgba(255,255,255,0.6);\
+  cursor: pointer; z-index: 100;\
+  border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.08); border-radius: 8px;\
+  font-family: -apple-system, sans-serif;\
+}\
+.admin-gear-icon:active { color: #fff; background: rgba(255,255,255,0.18); }\
+.admin-tile-img {\
+  width: 36px; height: 36px; border-radius: 6px;\
+  object-fit: cover; flex-shrink: 0;\
+}\
+.admin-import-area {\
+  width: 100%; min-height: 120px; background: var(--card, #0f3460);\
+  border: 2px solid rgba(255,255,255,0.1); border-radius: 8px;\
+  color: #fff; font-family: monospace; font-size: 0.8rem;\
+  padding: 10px; resize: vertical;\
+}\
+.admin-import-area:focus { border-color: ' + ADMIN_ACCENT + '; outline: none; }\
+.color-chip {\
+  display: inline-block; width: 28px; height: 28px;\
+  border-radius: 6px; cursor: pointer; border: 2px solid transparent;\
+}\
+.color-chip.selected { border-color: #fff; box-shadow: 0 0 0 2px ' + ADMIN_ACCENT + '; }\
+.color-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }\
+.admin-back-btn {\
+  display: inline-flex; align-items: center; gap: 4px;\
+  padding: 6px 12px; background: rgba(255,255,255,0.1);\
+  border: none; border-radius: 8px; color: #fff;\
+  font-size: 0.85rem; font-weight: 600; cursor: pointer; margin-bottom: 12px;\
+}\
+';
+
+  function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
+  function generateId() { return 'cat_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6); }
+  function escHtml(str) { var d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+
+  function toast(msg) {
+    var t = document.getElementById('admin-toast');
+    if (!t) { t = document.createElement('div'); t.id = 'admin-toast'; t.className = 'admin-toast'; document.body.appendChild(t); }
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._tid);
+    t._tid = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+
+  function saveConfig() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(_categories)); }
+    catch (e) { toast('Error saving'); }
+  }
+
+  function loadConfig() {
+    try { var raw = localStorage.getItem(STORAGE_KEY); if (raw) return JSON.parse(raw); }
+    catch (e) { /* silent */ }
+    return null;
+  }
+
+  function applyToApp() {
+    saveConfig();
+    if (_renderTabs) _renderTabs();
+    if (_renderGrid) _renderGrid();
+  }
+
+  function injectStyles() {
+    if (_styleEl) return;
+    _styleEl = document.createElement('style');
+    _styleEl.id = 'admin-panel-styles';
+    _styleEl.textContent = CSS;
+    document.head.appendChild(_styleEl);
+  }
+
+  function createGearIcon() {
+    if (_gearEl) return;
+    _gearEl = document.createElement('button');
+    _gearEl.className = 'admin-gear-icon';
+    _gearEl.setAttribute('aria-label', 'Admin settings');
+    _gearEl.innerHTML = '\u2699 Admin';
+    _gearEl.addEventListener('click', function (e) { e.stopPropagation(); open(); });
+    document.body.appendChild(_gearEl);
+  }
+
+  function setupTripleTap() {
+    var tapCount = 0;
+    var tapTimer = null;
+    var target = document.getElementById('quickbar') || document.getElementById('app');
+    if (!target) return;
+    target.addEventListener('click', function () {
+      tapCount++;
+      if (tapCount === 1) { tapTimer = setTimeout(function () { tapCount = 0; }, 800); }
+      if (tapCount >= 3) { clearTimeout(tapTimer); tapCount = 0; open(); }
+    });
+  }
+
+  function createPanel() {
+    if (_panelEl) return;
+    _panelEl = document.createElement('div');
+    _panelEl.id = 'admin-panel-overlay';
+    document.body.appendChild(_panelEl);
+  }
+
+  function getCategoryKeys() { return Object.keys(_categories); }
+  function getCategoryDisplayName(key) {
+    var cat = _categories[key];
+    if (cat && cat.name) return cat.name;
+    return key.charAt(0).toUpperCase() + key.slice(1);
+  }
+  function getCategoryEmoji(key) {
+    var cat = _categories[key];
+    if (cat && cat.emoji) return cat.emoji;
+    if (cat && cat.tiles && cat.tiles.length > 0) return cat.tiles[0].emoji;
+    return '\uD83D\uDCC1';
+  }
+
+  function buildEmojiPicker(selectedEmoji, pickerId) {
+    var html = '<div class="emoji-picker-container" id="' + pickerId + '">';
+    for (var groupName in EMOJI_GROUPS) {
+      if (!EMOJI_GROUPS.hasOwnProperty(groupName)) continue;
+      var emojis = EMOJI_GROUPS[groupName];
+      html += '<div class="emoji-picker-group-title">' + escHtml(groupName) + '</div>';
+      html += '<div class="emoji-picker-grid">';
+      for (var j = 0; j < emojis.length; j++) {
+        var em = emojis[j];
+        var sel = em === selectedEmoji ? ' selected' : '';
+        html += '<button class="emoji-pick' + sel + '" data-emoji="' + escHtml(em) + '" type="button">' + em + '</button>';
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function renderCategories() {
+    var keys = getCategoryKeys();
+    var html = '<div class="admin-card"><h2>Categories (' + keys.length + ')</h2>';
+    html += '<p>Tap a category to edit its tiles. Use arrows to reorder.</p>';
+    html += '<ul class="admin-list">';
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i];
+      var cat = _categories[key];
+      var name = getCategoryDisplayName(key);
+      var emoji = getCategoryEmoji(key);
+      var tileCount = (cat.tiles || []).length;
+      html += '<li class="admin-list-item" data-cat-key="' + escHtml(key) + '">';
+      html += '<span class="item-emoji">' + emoji + '</span>';
+      html += '<div class="item-text"><div class="item-label">' + escHtml(name) + '</div>';
+      html += '<div class="item-sub">' + tileCount + ' tile' + (tileCount !== 1 ? 's' : '') + ' &middot; ' + escHtml(cat.className || '') + '</div></div>';
+      html += '<div class="item-actions">';
+      html += '<button class="admin-icon-btn move-up" data-action="cat-up" data-key="' + escHtml(key) + '"' + (i === 0 ? ' disabled style="opacity:0.3"' : '') + ' title="Move up">\u25B2</button>';
+      html += '<button class="admin-icon-btn move-down" data-action="cat-down" data-key="' + escHtml(key) + '"' + (i === keys.length - 1 ? ' disabled style="opacity:0.3"' : '') + ' title="Move down">\u25BC</button>';
+      html += '<button class="admin-icon-btn" data-action="cat-edit" data-key="' + escHtml(key) + '" title="Edit">\u270E</button>';
+      html += '<button class="admin-icon-btn" data-action="cat-tiles" data-key="' + escHtml(key) + '" title="Edit tiles">\u25A6</button>';
+      html += '<button class="admin-icon-btn danger" data-action="cat-delete" data-key="' + escHtml(key) + '" title="Delete">\u2716</button>';
+      html += '</div></li>';
+    }
+    html += '</ul><div class="admin-btn-row"><button class="admin-btn" data-action="cat-add">+ Add Category</button></div></div>';
+    return html;
+  }
+
+  function renderTilesSection(catKey) {
+    var cat = _categories[catKey];
+    if (!cat) return '<p>Category not found.</p>';
+    var name = getCategoryDisplayName(catKey);
+    var tiles = cat.tiles || [];
+    var html = '<button class="admin-back-btn" data-action="back-to-cats">\u2190 Back to Categories</button>';
+    html += '<div class="admin-card"><h2>Tiles in "' + escHtml(name) + '" (' + tiles.length + ')</h2>';
+    html += '<ul class="admin-list">';
+    for (var i = 0; i < tiles.length; i++) {
+      var tile = tiles[i];
+      var hasImage = tile.image ? true : false;
+      html += '<li class="admin-list-item" data-tile-idx="' + i + '">';
+      if (hasImage) {
+        html += '<img class="admin-tile-img" src="' + escHtml(tile.image) + '" alt="">';
+      } else {
+        html += '<span class="item-emoji">' + (tile.emoji || '') + '</span>';
+      }
+      html += '<div class="item-text"><div class="item-label">' + escHtml(tile.label) + '</div>';
+      html += '<div class="item-sub">' + escHtml(tile.phrase) + '</div></div>';
+      html += '<div class="item-actions">';
+      html += '<button class="admin-icon-btn move-up" data-action="tile-up" data-idx="' + i + '"' + (i === 0 ? ' disabled style="opacity:0.3"' : '') + ' title="Move up">\u25B2</button>';
+      html += '<button class="admin-icon-btn move-down" data-action="tile-down" data-idx="' + i + '"' + (i === tiles.length - 1 ? ' disabled style="opacity:0.3"' : '') + ' title="Move down">\u25BC</button>';
+      html += '<button class="admin-icon-btn" data-action="tile-edit" data-idx="' + i + '" title="Edit">\u270E</button>';
+      html += '<button class="admin-icon-btn danger" data-action="tile-delete" data-idx="' + i + '" title="Delete">\u2716</button>';
+      html += '</div></li>';
+    }
+    html += '</ul><div class="admin-btn-row">';
+    html += '<button class="admin-btn" data-action="tile-add">+ Add Tile</button>';
+    html += '<button class="admin-btn secondary" data-action="tile-add-image">+ Add Image Tile</button>';
+    html += '</div></div>';
+    return html;
+  }
+
+  function renderPhrases() {
+    var html = '<div class="admin-card"><h2>Quick Add Custom Phrase</h2>';
+    html += '<p>Create a new tile and place it in any category.</p>';
+    html += '<div class="admin-field"><label>Emoji</label>';
+    html += '<div id="phrase-emoji-display" style="font-size:2rem; margin-bottom:8px; cursor:pointer;" data-action="phrase-pick-emoji">';
+    html += (_phraseEmoji || '\uD83D\uDE0A') + ' <span style="font-size:0.8rem; color:var(--text-dim)">(tap to change)</span></div>';
+    html += buildEmojiPicker(_phraseEmoji || '\uD83D\uDE0A', 'phrase-emoji-picker');
+    html += '</div>';
+    html += '<div class="admin-field"><label>Label (short, displayed on tile)</label>';
+    html += '<input type="text" id="phrase-label" placeholder="e.g. Music" maxlength="30"></div>';
+    html += '<div class="admin-field"><label>Spoken Phrase</label>';
+    html += '<input type="text" id="phrase-text" placeholder="e.g. I want to listen to music" maxlength="200"></div>';
+    html += '<div class="admin-field"><label>Add to Category</label>';
+    html += '<select id="phrase-category" style="width:100%; padding:10px 12px; background:var(--card, #0f3460); border:2px solid rgba(255,255,255,0.1); border-radius:8px; color:#fff; font-size:1rem;">';
+    var keys = getCategoryKeys();
+    for (var i = 0; i < keys.length; i++) {
+      html += '<option value="' + escHtml(keys[i]) + '">' + escHtml(getCategoryDisplayName(keys[i])) + '</option>';
+    }
+    html += '</select></div>';
+    html += '<div class="admin-btn-row"><button class="admin-btn success" data-action="phrase-save">Add Phrase</button></div></div>';
+    return html;
+  }
+
+  function renderTransfer() {
+    var html = '<div class="admin-card"><h2>Export Configuration</h2>';
+    html += '<p>Save your entire configuration as JSON for backup or transfer to another device.</p>';
+    html += '<div class="admin-btn-row">';
+    html += '<button class="admin-btn success" data-action="export-config">Export as JSON</button>';
+    html += '<button class="admin-btn secondary" data-action="export-copy">Copy to Clipboard</button>';
+    html += '</div>';
+    html += '<textarea class="admin-import-area" id="export-area" readonly style="margin-top:12px; display:none;"></textarea></div>';
+    html += '<div class="admin-card"><h2>Import Configuration</h2>';
+    html += '<p>Paste a previously exported JSON configuration to restore or transfer settings.</p>';
+    html += '<textarea class="admin-import-area" id="import-area" placeholder="Paste JSON here..."></textarea>';
+    html += '<div class="admin-btn-row" style="margin-top:8px;"><button class="admin-btn" data-action="import-config">Import</button></div></div>';
+    html += '<div class="admin-card"><h2>Reset to Factory Defaults</h2>';
+    html += '<p>Remove all customizations and restore the original built-in categories and phrases.</p>';
+    html += '<div class="admin-btn-row"><button class="admin-btn danger" data-action="reset-defaults">Reset Everything</button></div></div>';
+    return html;
+  }
+
+  function renderPanel() {
+    if (!_panelEl) return;
+    var sections = [
+      { id: 'categories', label: 'Categories' },
+      { id: 'tiles',      label: 'Tiles' },
+      { id: 'phrases',    label: 'New Phrase' },
+      { id: 'transfer',   label: 'Import/Export' }
+    ];
+    var contentHtml = '';
+    switch (_currentSection) {
+      case 'categories': contentHtml = renderCategories(); break;
+      case 'tiles':
+        if (_selectedCategory && _categories[_selectedCategory]) { contentHtml = renderTilesSection(_selectedCategory); }
+        else { _currentSection = 'categories'; contentHtml = renderCategories(); }
+        break;
+      case 'phrases': contentHtml = renderPhrases(); break;
+      case 'transfer': contentHtml = renderTransfer(); break;
+      default: contentHtml = renderCategories();
+    }
+    var tabsHtml = '';
+    for (var i = 0; i < sections.length; i++) {
+      var s = sections[i];
+      tabsHtml += '<button class="admin-tab' + (_currentSection === s.id ? ' active' : '') + '" data-section="' + s.id + '">' + s.label + '</button>';
+    }
+    _panelEl.innerHTML = '<div class="admin-header"><h1>\u2699 Admin Panel</h1><button class="admin-close-btn" data-action="close" aria-label="Close admin">\u2716</button></div>' +
+      '<div class="admin-tabs">' + tabsHtml + '</div>' +
+      '<div class="admin-content" id="admin-content">' + contentHtml + '</div>';
+    bindPanelEvents();
+  }
+
+  function bindPanelEvents() {
+    if (!_panelEl) return;
+    _panelEl.addEventListener('click', function handler(e) {
+      var btn = e.target.closest('[data-action]');
+      var tab = e.target.closest('[data-section]');
+      var emojiBtn = e.target.closest('.emoji-pick');
+      if (tab) {
+        _currentSection = tab.dataset.section;
+        if (_currentSection === 'tiles' && !_selectedCategory) { _currentSection = 'categories'; }
+        renderPanel(); return;
+      }
+      if (emojiBtn) { handleEmojiPick(emojiBtn); return; }
+      if (!btn) return;
+      var action = btn.dataset.action;
+      switch (action) {
+        case 'close': close(); break;
+        case 'cat-up': moveCategoryUp(btn.dataset.key); break;
+        case 'cat-down': moveCategoryDown(btn.dataset.key); break;
+        case 'cat-edit': showCategoryEditModal(btn.dataset.key); break;
+        case 'cat-tiles': _selectedCategory = btn.dataset.key; _currentSection = 'tiles'; renderPanel(); break;
+        case 'cat-delete': deleteCategory(btn.dataset.key); break;
+        case 'cat-add': showCategoryAddModal(); break;
+        case 'back-to-cats': _currentSection = 'categories'; _selectedCategory = null; renderPanel(); break;
+        case 'tile-up': moveTile(_selectedCategory, parseInt(btn.dataset.idx), -1); break;
+        case 'tile-down': moveTile(_selectedCategory, parseInt(btn.dataset.idx), 1); break;
+        case 'tile-edit': showTileEditModal(_selectedCategory, parseInt(btn.dataset.idx)); break;
+        case 'tile-delete': deleteTile(_selectedCategory, parseInt(btn.dataset.idx)); break;
+        case 'tile-add': showTileAddModal(_selectedCategory, false); break;
+        case 'tile-add-image': showTileAddModal(_selectedCategory, true); break;
+        case 'phrase-save': saveQuickPhrase(); break;
+        case 'export-config': exportConfig_ui(); break;
+        case 'export-copy': exportCopyClipboard(); break;
+        case 'import-config': importConfig_ui(); break;
+        case 'reset-defaults': confirmReset(); break;
+      }
+    });
+  }
+
+  function handleEmojiPick(btn) {
+    var emoji = btn.dataset.emoji;
+    var picker = btn.closest('.emoji-picker-container');
+    if (!picker) return;
+    var all = picker.querySelectorAll('.emoji-pick');
+    for (var i = 0; i < all.length; i++) all[i].classList.remove('selected');
+    btn.classList.add('selected');
+    if (picker.id === 'phrase-emoji-picker') {
+      _phraseEmoji = emoji;
+      var display = document.getElementById('phrase-emoji-display');
+      if (display) display.innerHTML = emoji + ' <span style="font-size:0.8rem; color:var(--text-dim)">(tap to change)</span>';
+    } else if (picker.id === 'modal-emoji-picker') {
+      var field = document.getElementById('modal-emoji-value');
+      if (field) field.value = emoji;
+      var preview = document.getElementById('modal-emoji-preview');
+      if (preview) preview.textContent = emoji;
+    }
+  }
+
+  function replaceCategories(newCats) {
+    var k;
+    for (k in _categories) { if (_categories.hasOwnProperty(k)) delete _categories[k]; }
+    for (k in newCats) { if (newCats.hasOwnProperty(k)) _categories[k] = newCats[k]; }
+  }
+
+  function moveCategoryUp(key) {
+    var keys = getCategoryKeys();
+    var idx = keys.indexOf(key);
+    if (idx <= 0) return;
+    var newCats = {};
+    for (var i = 0; i < keys.length; i++) {
+      if (i === idx - 1) newCats[keys[idx]] = _categories[keys[idx]];
+      else if (i === idx) newCats[keys[idx - 1]] = _categories[keys[idx - 1]];
+      else newCats[keys[i]] = _categories[keys[i]];
+    }
+    replaceCategories(newCats);
+    renderPanel(); applyToApp();
+  }
+
+  function moveCategoryDown(key) {
+    var keys = getCategoryKeys();
+    var idx = keys.indexOf(key);
+    if (idx < 0 || idx >= keys.length - 1) return;
+    var newCats = {};
+    for (var i = 0; i < keys.length; i++) {
+      if (i === idx) newCats[keys[idx + 1]] = _categories[keys[idx + 1]];
+      else if (i === idx + 1) newCats[keys[idx]] = _categories[keys[idx]];
+      else newCats[keys[i]] = _categories[keys[i]];
+    }
+    replaceCategories(newCats);
+    renderPanel(); applyToApp();
+  }
+
+  function deleteCategory(key) {
+    var name = getCategoryDisplayName(key);
+    if (!confirm('Delete category "' + name + '" and all its tiles? This cannot be undone.')) return;
+    delete _categories[key];
+    if (_selectedCategory === key) _selectedCategory = null;
+    renderPanel(); applyToApp();
+    toast('Deleted "' + name + '"');
+  }
+
+  function showCategoryEditModal(key) {
+    var cat = _categories[key];
+    if (!cat) return;
+    var name = getCategoryDisplayName(key);
+    var emoji = getCategoryEmoji(key);
+    var currentColor = cat.className || '';
+    var backdrop = document.createElement('div');
+    backdrop.className = 'admin-modal-backdrop';
+    var chipsHtml = '';
+    for (var ci = 0; ci < CATEGORY_COLORS.length; ci++) {
+      var c = CATEGORY_COLORS[ci];
+      chipsHtml += '<div class="color-chip' + (currentColor === c.cls ? ' selected' : '') + '" style="background:' + c.bg + '" data-cls="' + c.cls + '" title="' + c.name + '"></div>';
+    }
+    backdrop.innerHTML = '<div class="admin-modal"><h3>Edit Category</h3>' +
+      '<div class="admin-field"><label>Category Name</label><input type="text" id="modal-cat-name" value="' + escHtml(name) + '" maxlength="30"></div>' +
+      '<div class="admin-field"><label>Category Emoji</label>' +
+      '<div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">' +
+      '<span id="modal-emoji-preview" style="font-size:2rem;">' + emoji + '</span>' +
+      '<input type="hidden" id="modal-emoji-value" value="' + escHtml(emoji) + '"></div>' +
+      buildEmojiPicker(emoji, 'modal-emoji-picker') + '</div>' +
+      '<div class="admin-field"><label>Tile Color</label><div class="color-chips">' + chipsHtml + '</div></div>' +
+      '<div class="admin-btn-row" style="margin-top:16px;">' +
+      '<button class="admin-btn success" id="modal-cat-save">Save</button>' +
+      '<button class="admin-btn secondary" id="modal-cat-cancel">Cancel</button></div></div>';
+    document.body.appendChild(backdrop);
+    var chips = backdrop.querySelectorAll('.color-chip');
+    for (var i = 0; i < chips.length; i++) {
+      chips[i].addEventListener('click', function () {
+        var all = backdrop.querySelectorAll('.color-chip');
+        for (var j = 0; j < all.length; j++) all[j].classList.remove('selected');
+        this.classList.add('selected');
+      });
+    }
+    var epicks = backdrop.querySelectorAll('.emoji-pick');
+    for (var i = 0; i < epicks.length; i++) {
+      epicks[i].addEventListener('click', function () {
+        var all = backdrop.querySelectorAll('.emoji-pick');
+        for (var j = 0; j < all.length; j++) all[j].classList.remove('selected');
+        this.classList.add('selected');
+        document.getElementById('modal-emoji-value').value = this.dataset.emoji;
+        document.getElementById('modal-emoji-preview').textContent = this.dataset.emoji;
+      });
+    }
+    backdrop.querySelector('#modal-cat-cancel').addEventListener('click', function () { backdrop.remove(); });
+    backdrop.addEventListener('click', function (e) { if (e.target === backdrop) backdrop.remove(); });
+    backdrop.querySelector('#modal-cat-save').addEventListener('click', function () {
+      var newName = document.getElementById('modal-cat-name').value.trim();
+      var newEmoji = document.getElementById('modal-emoji-value').value;
+      var selectedChip = backdrop.querySelector('.color-chip.selected');
+      var newCls = selectedChip ? selectedChip.dataset.cls : currentColor;
+      if (!newName) { toast('Name cannot be empty'); return; }
+      cat.name = newName; cat.emoji = newEmoji; cat.className = newCls;
+      backdrop.remove(); renderPanel(); applyToApp();
+      toast('Updated "' + newName + '"');
+    });
+  }
+
+  function showCategoryAddModal() {
+    var backdrop = document.createElement('div');
+    backdrop.className = 'admin-modal-backdrop';
+    var chipsHtml = '';
+    for (var ci = 0; ci < CATEGORY_COLORS.length; ci++) {
+      var c = CATEGORY_COLORS[ci];
+      chipsHtml += '<div class="color-chip' + (ci === 0 ? ' selected' : '') + '" style="background:' + c.bg + '" data-cls="' + c.cls + '" title="' + c.name + '"></div>';
+    }
+    backdrop.innerHTML = '<div class="admin-modal"><h3>Add New Category</h3>' +
+      '<div class="admin-field"><label>Category Name</label><input type="text" id="modal-cat-name" placeholder="e.g. Activities" maxlength="30"></div>' +
+      '<div class="admin-field"><label>Category Emoji</label>' +
+      '<div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">' +
+      '<span id="modal-emoji-preview" style="font-size:2rem;">\uD83D\uDCC1</span>' +
+      '<input type="hidden" id="modal-emoji-value" value="\uD83D\uDCC1"></div>' +
+      buildEmojiPicker('\uD83D\uDCC1', 'modal-emoji-picker') + '</div>' +
+      '<div class="admin-field"><label>Tile Color</label><div class="color-chips">' + chipsHtml + '</div></div>' +
+      '<div class="admin-btn-row" style="margin-top:16px;">' +
+      '<button class="admin-btn success" id="modal-cat-save">Create</button>' +
+      '<button class="admin-btn secondary" id="modal-cat-cancel">Cancel</button></div></div>';
+    document.body.appendChild(backdrop);
+    var chips = backdrop.querySelectorAll('.color-chip');
+    for (var i = 0; i < chips.length; i++) {
+      chips[i].addEventListener('click', function () {
+        var all = backdrop.querySelectorAll('.color-chip');
+        for (var j = 0; j < all.length; j++) all[j].classList.remove('selected');
+        this.classList.add('selected');
+      });
+    }
+    var epicks = backdrop.querySelectorAll('.emoji-pick');
+    for (var i = 0; i < epicks.length; i++) {
+      epicks[i].addEventListener('click', function () {
+        var all = backdrop.querySelectorAll('.emoji-pick');
+        for (var j = 0; j < all.length; j++) all[j].classList.remove('selected');
+        this.classList.add('selected');
+        document.getElementById('modal-emoji-value').value = this.dataset.emoji;
+        document.getElementById('modal-emoji-preview').textContent = this.dataset.emoji;
+      });
+    }
+    backdrop.querySelector('#modal-cat-cancel').addEventListener('click', function () { backdrop.remove(); });
+    backdrop.addEventListener('click', function (e) { if (e.target === backdrop) backdrop.remove(); });
+    backdrop.querySelector('#modal-cat-save').addEventListener('click', function () {
+      var newName = document.getElementById('modal-cat-name').value.trim();
+      var newEmoji = document.getElementById('modal-emoji-value').value;
+      var selectedChip = backdrop.querySelector('.color-chip.selected');
+      var cls = selectedChip ? selectedChip.dataset.cls : 'cat-custom1';
+      if (!newName) { toast('Name is required'); return; }
+      var id = generateId();
+      _categories[id] = { name: newName, emoji: newEmoji, className: cls, tiles: [] };
+      backdrop.remove(); renderPanel(); applyToApp();
+      toast('Created "' + newName + '"');
+    });
+  }
+
+  function moveTile(catKey, idx, dir) {
+    var tiles = _categories[catKey].tiles;
+    var newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= tiles.length) return;
+    var tmp = tiles[idx]; tiles[idx] = tiles[newIdx]; tiles[newIdx] = tmp;
+    renderPanel(); applyToApp();
+  }
+
+  function deleteTile(catKey, idx) {
+    var tile = _categories[catKey].tiles[idx];
+    if (!confirm('Delete tile "' + tile.label + '"?')) return;
+    _categories[catKey].tiles.splice(idx, 1);
+    renderPanel(); applyToApp();
+    toast('Deleted "' + tile.label + '"');
+  }
+
+  function showTileEditModal(catKey, idx) {
+    var tile = _categories[catKey].tiles[idx];
+    if (!tile) return;
+    var hasImage = !!tile.image;
+    var backdrop = document.createElement('div');
+    backdrop.className = 'admin-modal-backdrop';
+    var emojiField = '';
+    if (!hasImage) {
+      emojiField = '<div class="admin-field"><label>Emoji</label>' +
+        '<div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">' +
+        '<span id="modal-emoji-preview" style="font-size:2rem;">' + (tile.emoji || '\uD83D\uDE0A') + '</span>' +
+        '<input type="hidden" id="modal-emoji-value" value="' + escHtml(tile.emoji || '\uD83D\uDE0A') + '"></div>' +
+        buildEmojiPicker(tile.emoji || '\uD83D\uDE0A', 'modal-emoji-picker') + '</div>';
+    } else {
+      emojiField = '<div class="admin-field"><label>Image (base64 data URL)</label>' +
+        '<img class="admin-img-preview" src="' + escHtml(tile.image) + '" alt="" style="display:block; margin-bottom:8px;">' +
+        '<textarea id="modal-tile-image" style="width:100%;min-height:60px;background:var(--card);border:2px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-family:monospace;font-size:0.7rem;padding:8px;">' + escHtml(tile.image) + '</textarea>' +
+        '<div class="admin-btn-row" style="margin-top:4px;"><button class="admin-btn secondary" id="modal-switch-emoji" style="font-size:0.8rem;">Switch to Emoji</button></div></div>';
+    }
+    backdrop.innerHTML = '<div class="admin-modal"><h3>Edit Tile</h3>' + emojiField +
+      '<div class="admin-field"><label>Label</label><input type="text" id="modal-tile-label" value="' + escHtml(tile.label) + '" maxlength="30"></div>' +
+      '<div class="admin-field"><label>Spoken Phrase</label><input type="text" id="modal-tile-phrase" value="' + escHtml(tile.phrase) + '" maxlength="200"></div>' +
+      '<div class="admin-btn-row" style="margin-top:16px;">' +
+      '<button class="admin-btn success" id="modal-tile-save">Save</button>' +
+      '<button class="admin-btn secondary" id="modal-tile-cancel">Cancel</button></div></div>';
+    document.body.appendChild(backdrop);
+    var epicks = backdrop.querySelectorAll('.emoji-pick');
+    for (var i = 0; i < epicks.length; i++) {
+      epicks[i].addEventListener('click', function () {
+        var all = backdrop.querySelectorAll('.emoji-pick');
+        for (var j = 0; j < all.length; j++) all[j].classList.remove('selected');
+        this.classList.add('selected');
+        document.getElementById('modal-emoji-value').value = this.dataset.emoji;
+        document.getElementById('modal-emoji-preview').textContent = this.dataset.emoji;
+      });
+    }
+    var switchBtn = backdrop.querySelector('#modal-switch-emoji');
+    if (switchBtn) {
+      switchBtn.addEventListener('click', function () {
+        tile.image = undefined; tile.emoji = '\uD83D\uDE0A';
+        backdrop.remove(); showTileEditModal(catKey, idx);
+      });
+    }
+    backdrop.querySelector('#modal-tile-cancel').addEventListener('click', function () { backdrop.remove(); });
+    backdrop.addEventListener('click', function (e) { if (e.target === backdrop) backdrop.remove(); });
+    backdrop.querySelector('#modal-tile-save').addEventListener('click', function () {
+      var label = document.getElementById('modal-tile-label').value.trim();
+      var phrase = document.getElementById('modal-tile-phrase').value.trim();
+      if (!label) { toast('Label is required'); return; }
+      if (!phrase) { toast('Phrase is required'); return; }
+      tile.label = label; tile.phrase = phrase;
+      if (!hasImage) {
+        var emojiVal = document.getElementById('modal-emoji-value');
+        tile.emoji = emojiVal ? emojiVal.value : tile.emoji;
+        delete tile.image;
+      } else {
+        var imgVal = document.getElementById('modal-tile-image');
+        if (imgVal) tile.image = imgVal.value.trim();
+      }
+      backdrop.remove(); renderPanel(); applyToApp();
+      toast('Updated "' + label + '"');
+    });
+  }
+
+  function showTileAddModal(catKey, withImage) {
+    var backdrop = document.createElement('div');
+    backdrop.className = 'admin-modal-backdrop';
+    var topField = '';
+    if (withImage) {
+      topField = '<div class="admin-field"><label>Image (paste base64 data URL)</label>' +
+        '<textarea id="modal-tile-image" style="width:100%;min-height:80px;background:var(--card);border:2px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-family:monospace;font-size:0.7rem;padding:8px;" placeholder="data:image/png;base64,..."></textarea>' +
+        '<p style="font-size:0.75rem; color:var(--text-dim); margin-top:4px;">Paste a base64 data URL.</p></div>';
+    } else {
+      topField = '<div class="admin-field"><label>Emoji</label>' +
+        '<div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">' +
+        '<span id="modal-emoji-preview" style="font-size:2rem;">\uD83D\uDE0A</span>' +
+        '<input type="hidden" id="modal-emoji-value" value="\uD83D\uDE0A"></div>' +
+        buildEmojiPicker('\uD83D\uDE0A', 'modal-emoji-picker') + '</div>';
+    }
+    backdrop.innerHTML = '<div class="admin-modal"><h3>Add ' + (withImage ? 'Image' : 'New') + ' Tile</h3>' + topField +
+      '<div class="admin-field"><label>Label</label><input type="text" id="modal-tile-label" placeholder="e.g. Water" maxlength="30"></div>' +
+      '<div class="admin-field"><label>Spoken Phrase</label><input type="text" id="modal-tile-phrase" placeholder="e.g. I need water" maxlength="200"></div>' +
+      '<div class="admin-btn-row" style="margin-top:16px;">' +
+      '<button class="admin-btn success" id="modal-tile-save">Add</button>' +
+      '<button class="admin-btn secondary" id="modal-tile-cancel">Cancel</button></div></div>';
+    document.body.appendChild(backdrop);
+    var epicks = backdrop.querySelectorAll('.emoji-pick');
+    for (var i = 0; i < epicks.length; i++) {
+      epicks[i].addEventListener('click', function () {
+        var all = backdrop.querySelectorAll('.emoji-pick');
+        for (var j = 0; j < all.length; j++) all[j].classList.remove('selected');
+        this.classList.add('selected');
+        document.getElementById('modal-emoji-value').value = this.dataset.emoji;
+        document.getElementById('modal-emoji-preview').textContent = this.dataset.emoji;
+      });
+    }
+    backdrop.querySelector('#modal-tile-cancel').addEventListener('click', function () { backdrop.remove(); });
+    backdrop.addEventListener('click', function (e) { if (e.target === backdrop) backdrop.remove(); });
+    backdrop.querySelector('#modal-tile-save').addEventListener('click', function () {
+      var label = document.getElementById('modal-tile-label').value.trim();
+      var phrase = document.getElementById('modal-tile-phrase').value.trim();
+      if (!label) { toast('Label is required'); return; }
+      if (!phrase) { toast('Phrase is required'); return; }
+      var newTile = { label: label, phrase: phrase };
+      if (withImage) {
+        var imgArea = document.getElementById('modal-tile-image');
+        var imgVal = imgArea ? imgArea.value.trim() : '';
+        if (!imgVal) { toast('Image data URL is required'); return; }
+        if (imgVal.indexOf('data:') !== 0) { toast('Must be a data: URL (base64)'); return; }
+        newTile.image = imgVal; newTile.emoji = '\uD83D\uDDBC';
+      } else {
+        var emojiVal = document.getElementById('modal-emoji-value');
+        newTile.emoji = emojiVal ? emojiVal.value : '\uD83D\uDE0A';
+      }
+      if (!_categories[catKey].tiles) _categories[catKey].tiles = [];
+      _categories[catKey].tiles.push(newTile);
+      backdrop.remove(); renderPanel(); applyToApp();
+      toast('Added "' + label + '"');
+    });
+  }
+
+  function saveQuickPhrase() {
+    var label = document.getElementById('phrase-label').value.trim();
+    var phrase = document.getElementById('phrase-text').value.trim();
+    var catKey = document.getElementById('phrase-category').value;
+    if (!label) { toast('Label is required'); return; }
+    if (!phrase) { toast('Phrase is required'); return; }
+    if (!_categories[catKey]) { toast('Invalid category'); return; }
+    _categories[catKey].tiles.push({ emoji: _phraseEmoji || '\uD83D\uDE0A', label: label, phrase: phrase });
+    document.getElementById('phrase-label').value = '';
+    document.getElementById('phrase-text').value = '';
+    _phraseEmoji = '\uD83D\uDE0A';
+    applyToApp(); toast('Added "' + label + '" to ' + getCategoryDisplayName(catKey));
+    renderPanel();
+  }
+
+  function exportConfig_ui() {
+    var json = exportConfig();
+    var area = document.getElementById('export-area');
+    if (area) { area.value = json; area.style.display = 'block'; area.focus(); area.select(); }
+    toast('Configuration exported');
+  }
+
+  function exportCopyClipboard() {
+    var json = exportConfig();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(json).then(function () { toast('Copied to clipboard'); })
+        .catch(function () { exportConfig_ui(); toast('Shown below - manually copy'); });
+    } else { exportConfig_ui(); toast('Shown below - manually copy'); }
+  }
+
+  function importConfig_ui() {
+    var area = document.getElementById('import-area');
+    if (!area) return;
+    var raw = area.value.trim();
+    if (!raw) { toast('Paste JSON first'); return; }
+    if (!confirm('Import this configuration? This will replace all current categories and tiles.')) return;
+    try { importConfig(raw); area.value = ''; renderPanel(); toast('Configuration imported successfully'); }
+    catch (e) { toast('Import failed: ' + e.message); }
+  }
+
+  function confirmReset() {
+    if (!confirm('Reset ALL customizations? This will restore the original built-in categories and remove all changes. This cannot be undone.')) return;
+    resetToDefaults(); renderPanel(); toast('Reset to factory defaults');
+  }
+
+  // Public API implementation
+  function init(categoriesRef, renderGridFn, renderTabsFn) {
+    _renderGrid = renderGridFn;
+    _renderTabs = renderTabsFn;
+    _defaultCategories = deepClone(categoriesRef);
+    var saved = loadConfig();
+    if (saved) {
+      var k;
+      for (k in categoriesRef) { if (categoriesRef.hasOwnProperty(k)) delete categoriesRef[k]; }
+      for (k in saved) { if (saved.hasOwnProperty(k)) categoriesRef[k] = saved[k]; }
+    }
+    _categories = categoriesRef;
+    injectStyles(); createGearIcon(); setupTripleTap(); createPanel();
+  }
+
+  function open() {
+    if (_isOpen) return;
+    _isOpen = true;
+    _currentSection = 'categories'; _selectedCategory = null;
+    renderPanel();
+    requestAnimationFrame(function () { _panelEl.classList.add('open'); });
+  }
+
+  function close() {
+    if (!_isOpen) return;
+    _isOpen = false;
+    _panelEl.classList.remove('open');
+    applyToApp();
+  }
+
+  function exportConfig() { return JSON.stringify(_categories, null, 2); }
+
+  function importConfig(jsonString) {
+    var parsed;
+    try { parsed = JSON.parse(jsonString); } catch (e) { throw new Error('Invalid JSON'); }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Config must be a JSON object');
+    var keys = Object.keys(parsed);
+    if (keys.length === 0) throw new Error('Config must contain at least one category');
+    for (var ki = 0; ki < keys.length; ki++) {
+      var catObj = parsed[keys[ki]];
+      if (!catObj || typeof catObj !== 'object') throw new Error('Category "' + keys[ki] + '" is invalid');
+      if (!Array.isArray(catObj.tiles)) throw new Error('Category "' + keys[ki] + '" must have a tiles array');
+      for (var ti = 0; ti < catObj.tiles.length; ti++) {
+        var t = catObj.tiles[ti];
+        if (!t.label || !t.phrase) throw new Error('Tile ' + ti + ' in "' + keys[ki] + '" needs label and phrase');
+      }
+    }
+    replaceCategories(parsed);
+    applyToApp();
+  }
+
+  function resetToDefaults() {
+    if (!_defaultCategories) return;
+    var fresh = deepClone(_defaultCategories);
+    replaceCategories(fresh);
+    localStorage.removeItem(STORAGE_KEY);
+    applyToApp();
+  }
+
+  function getCategories() {
+    var saved = loadConfig();
+    if (saved) return saved;
+    if (_defaultCategories) return deepClone(_defaultCategories);
+    return _categories ? deepClone(_categories) : {};
+  }
+
+  return {
+    init: init, open: open, close: close,
+    exportConfig: exportConfig, importConfig: importConfig,
+    resetToDefaults: resetToDefaults, getCategories: getCategories
+  };
+})();
+
+
+// =====================================================
+// == Main App Code                                   ==
+// =====================================================
+
+// -- Default Phrase Data (Scottish English) --
+var categories = {
+  needs: {
+    name: 'Needs',
+    emoji: '\uD83C\uDF7D',
+    className: 'cat-needs',
+    tiles: [
+      { emoji: '\uD83D\uDCA7', label: 'Water',      phrase: "I need some water, please" },
+      { emoji: '\uD83C\uDF7D', label: 'Hungry',      phrase: "I'm hungry" },
+      { emoji: '\uD83D\uDEBD', label: 'Bathroom',    phrase: "I need the bathroom" },
+      { emoji: '\uD83D\uDC8A', label: 'Medicine',    phrase: "I need my medicine" },
+      { emoji: '\uD83D\uDC53', label: 'Glasses',     phrase: "I need my glasses" },
+      { emoji: '\uD83D\uDCF1', label: 'Phone',       phrase: "I'd like my phone, please" },
+      { emoji: '\uD83D\uDD07', label: 'Quiet',       phrase: "I need a wee bit of quiet, please" },
+      { emoji: '\uD83D\uDCA1', label: 'Light On',    phrase: "Could you put the light on, please" },
+      { emoji: '\uD83C\uDF19', label: 'Light Off',   phrase: "Could you put the light off, please" },
+      { emoji: '\uD83E\uDDE3', label: 'Cold',        phrase: "I'm cauld" },
+      { emoji: '\uD83E\uDD75', label: 'Hot',         phrase: "I'm too warm" },
+      { emoji: '\uD83D\uDCFA', label: 'TV',          phrase: "I'd like to watch the telly" }
+    ]
+  },
+  pain: {
+    name: 'Pain',
+    emoji: '\uD83E\uDE79',
+    className: 'cat-pain',
+    tiles: [
+      { emoji: '\uD83E\uDD15', label: 'Head',        phrase: "My head hurts" },
+      { emoji: '\uD83D\uDE2E\u200D\uD83D\uDCA8', label: 'Chest', phrase: "My chest hurts" },
+      { emoji: '\uD83E\uDD30', label: 'Stomach',     phrase: "My stomach hurts" },
+      { emoji: '\uD83E\uDDB5', label: 'Legs',        phrase: "My legs hurt" },
+      { emoji: '\uD83E\uDDB4', label: 'Back',        phrase: "My back hurts" },
+      { emoji: '\uD83D\uDCAA', label: 'Arm',         phrase: "My arm hurts" },
+      { emoji: '\uD83D\uDE30', label: 'A Lot',       phrase: "The pain is very bad" },
+      { emoji: '\uD83D\uDE15', label: 'A Little',    phrase: "The pain is mild" },
+      { emoji: '\uD83D\uDCC8', label: 'Worse',       phrase: "The pain is getting worse" },
+      { emoji: '\uD83D\uDCC9', label: 'Better',      phrase: "The pain is getting better" },
+      { emoji: '\uD83D\uDE34', label: "Can't Sleep",  phrase: "The pain is keeping me awake" },
+      { emoji: '\uD83E\uDD22', label: 'Nausea',      phrase: "I feel nauseous" }
+    ]
+  },
+  feelings: {
+    name: 'Feelings',
+    emoji: '\uD83D\uDC99',
+    className: 'cat-feelings',
+    tiles: [
+      { emoji: '\uD83D\uDE0A', label: 'Happy',       phrase: "I'm happy" },
+      { emoji: '\uD83D\uDE22', label: 'Sad',         phrase: "I'm feeling sad" },
+      { emoji: '\uD83D\uDE1F', label: 'Worried',     phrase: "I'm a wee bit worried" },
+      { emoji: '\uD83D\uDE20', label: 'Frustrated',  phrase: "I'm frustrated" },
+      { emoji: '\uD83D\uDE34', label: 'Tired',       phrase: "I'm fair puggled" },
+      { emoji: '\uD83D\uDE30', label: 'Scared',      phrase: "I'm feeling scared" },
+      { emoji: '\uD83E\uDD70', label: 'Loved',       phrase: "I feel loved" },
+      { emoji: '\uD83D\uDE14', label: 'Lonely',      phrase: "I'm feeling lonely" },
+      { emoji: '\uD83D\uDE24', label: 'Angry',       phrase: "I'm angry" },
+      { emoji: '\uD83D\uDE0C', label: 'Calm',        phrase: "I'm feeling calm" },
+      { emoji: '\uD83E\uDD71', label: 'Bored',       phrase: "I'm bored" },
+      { emoji: '\uD83E\uDD17', label: 'Good',        phrase: "I'm feeling braw the day" }
+    ]
+  },
+  people: {
+    name: 'People',
+    emoji: '\uD83D\uDC64',
+    className: 'cat-people',
+    tiles: [
+      { emoji: '\uD83D\uDC69\u200D\u2695\uFE0F', label: 'Nurse',    phrase: "I need the nurse" },
+      { emoji: '\uD83E\uDDD1\u200D\u2695\uFE0F', label: 'Doctor',   phrase: "I need the doctor" },
+      { emoji: '\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67', label: 'Family', phrase: "I'd like to see my family" },
+      { emoji: '\uD83D\uDC66', label: 'Gordon',      phrase: "I'd like to see Gordon" },
+      { emoji: '\uD83E\uDD1D', label: 'Visitor',     phrase: "Is someone coming to visit?" },
+      { emoji: '\uD83D\uDE4B', label: 'Someone',     phrase: "I need someone to come here" },
+      { emoji: '\uD83D\uDC4B', label: 'Alone',       phrase: "I'd like to be on my own for a wee while" },
+      { emoji: '\uD83E\uDDD1\u200D\uD83E\uDD1D\u200D\uD83E\uDDD1', label: 'Company', phrase: "I'd like some company" },
+      { emoji: '\uD83D\uDCDE', label: 'Call',        phrase: "I'd like to call someone" }
+    ]
+  },
+  actions: {
+    name: 'Actions',
+    emoji: '\u270B',
+    className: 'cat-actions',
+    tiles: [
+      { emoji: '\uD83D\uDECF', label: 'Lie Down',    phrase: "I'd like to lie down" },
+      { emoji: '\uD83E\uDE91', label: 'Sit Up',      phrase: "Help me sit up, please" },
+      { emoji: '\uD83D\uDEB6', label: 'Walk',        phrase: "I'd like to try walking" },
+      { emoji: '\uD83D\uDD04', label: 'Turn Over',   phrase: "Help me turn over, please" },
+      { emoji: '\uD83D\uDEBF', label: 'Wash',        phrase: "I'd like to have a wash" },
+      { emoji: '\uD83D\uDC55', label: 'Change',      phrase: "I'd like to get changed" },
+      { emoji: '\uD83E\uDE9B', label: 'Teeth',       phrase: "I'd like to brush my teeth" },
+      { emoji: '\uD83C\uDF74', label: 'Eat',         phrase: "I'm ready to eat" },
+      { emoji: '\uD83D\uDED1', label: 'Stop',        phrase: "Stop, please" },
+      { emoji: '\u23F3',       label: 'Wait',        phrase: "Just a wee moment, please" },
+      { emoji: '\uD83D\uDD01', label: 'Again',       phrase: "Could you do that again, please" },
+      { emoji: '\u21A9\uFE0F', label: 'Go Back',     phrase: "I've changed my mind" }
+    ]
+  },
+  comfort: {
+    name: 'Comfort',
+    emoji: '\uD83D\uDECB',
+    className: 'cat-comfort',
+    tiles: [
+      { emoji: '\uD83D\uDECF', label: 'Pillow',      phrase: "Could you sort my pillow, please" },
+      { emoji: '\uD83E\uDDCA', label: 'Ice',         phrase: "I'd like some ice" },
+      { emoji: '\u2615',       label: 'Warm Drink',  phrase: "I'd like a wee cup of tea" },
+      { emoji: '\uD83E\uDED7', label: 'Straw',       phrase: "I need a straw" },
+      { emoji: '\uD83D\uDCFB', label: 'Music',       phrase: "I'd like to listen to some music" },
+      { emoji: '\uD83E\uDE9F', label: 'Window',      phrase: "Could you open the window, please" },
+      { emoji: '\uD83D\uDEAA', label: 'Door',        phrase: "Could you close the door, please" },
+      { emoji: '\uD83E\uDD27', label: 'Tissue',      phrase: "I need a tissue" },
+      { emoji: '\uD83E\uDDF4', label: 'Lotion',      phrase: "I need some lotion, please" },
+      { emoji: '\uD83D\uDE2E\u200D\uD83D\uDCA8', label: 'Fresh Air', phrase: "I'd like some fresh air" },
+      { emoji: '\u2764\uFE0F', label: 'Hug',        phrase: "I'd love a wee hug" },
+      { emoji: '\uD83D\uDE42', label: "I'm OK",     phrase: "I'm fine, don't worry" }
+    ]
+  }
+};
+
+var currentCategory = 'needs';
+var lastPhrase = '';
+var _isFavoritesTabActive = false;
+
+// -- Emoji lookup for recents tracking --
+function _findTileByPhrase(phrase) {
+  for (var cat in categories) {
+    if (!categories.hasOwnProperty(cat)) continue;
+    var tiles = categories[cat].tiles;
+    for (var i = 0; i < tiles.length; i++) {
+      if (tiles[i].phrase === phrase) {
+        return { emoji: tiles[i].emoji, category: cat };
+      }
+    }
+  }
+  // Check quickbar phrases
+  var qb = {
+    'Aye': '\uD83D\uDC4D',
+    'Naw': '\uD83D\uDC4E',
+    'I need help': '\uD83C\uDD98',
+    "I'm in pain": '\uD83D\uDE23',
+    'Thank you': '\uD83D\uDE4F'
+  };
+  if (qb[phrase]) return { emoji: qb[phrase], category: 'quick' };
+  return null;
+}
+
+// -- Speech --
+function speak(phrase) {
+  lastPhrase = phrase;
+
+  // Update display
+  document.getElementById('message-display').textContent = phrase;
+
+  // Speak it
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+    var utter = new SpeechSynthesisUtterance(phrase);
+    utter.rate = 0.9;
+    utter.pitch = 1.0;
+    utter.volume = 1.0;
+    utter.lang = 'en-GB';
+    // Prefer Scottish voice (Fiona on iOS), then any en-GB, then any English
+    var voices = window.speechSynthesis.getVoices();
+    var preferred = voices.find(function (v) { return v.name === 'Fiona'; }) ||
+                    voices.find(function (v) { return v.lang === 'en-SC'; }) ||
+                    voices.find(function (v) { return v.name.toLowerCase().indexOf('scot') !== -1; }) ||
+                    voices.find(function (v) { return v.lang === 'en-GB' && v.localService; }) ||
+                    voices.find(function (v) { return v.lang.indexOf('en-GB') === 0; }) ||
+                    voices.find(function (v) { return v.lang.indexOf('en') === 0 && v.localService; }) ||
+                    voices[0];
+    if (preferred) utter.voice = preferred;
+    window.speechSynthesis.speak(utter);
+  }
+
+  // Track in recents
+  var found = _findTileByPhrase(phrase);
+  RecentsEngine.add(phrase, found ? found.emoji : '', found ? found.category : '');
+
+  // Flash the tile if triggered from a tile tap
+  if (typeof event !== 'undefined' && event && event.currentTarget) {
+    var tile = event.currentTarget;
+    tile.classList.add('spoken');
+    setTimeout(function () { tile.classList.remove('spoken'); }, 600);
+  }
+}
+
+function replayLast() {
+  if (lastPhrase) speak(lastPhrase);
+}
+
+function clearMessage() {
+  lastPhrase = '';
+  document.getElementById('message-display').textContent = 'Tap a button to speak';
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+}
+
+// -- Dynamic Tab Rendering --
+function renderTabs() {
+  var tabsEl = document.getElementById('tabs');
+  var keys = Object.keys(categories);
+
+  // If current category no longer exists, default to first
+  if (!_isFavoritesTabActive && !categories[currentCategory]) {
+    currentCategory = keys[0] || 'needs';
+  }
+
+  var html = '';
+
+  // Favorites tab first
+  var favActive = _isFavoritesTabActive ? ' active' : '';
+  var favCount = FavoritesSystem.count();
+  html += '<div class="tab' + favActive + '" onclick="showFavorites()">\u2605 Favourites' + (favCount > 0 ? ' (' + favCount + ')' : '') + '</div>';
+
+  // Category tabs
+  for (var i = 0; i < keys.length; i++) {
+    var key = keys[i];
+    var cat = categories[key];
+    var name = cat.name || (key.charAt(0).toUpperCase() + key.slice(1));
+    var emoji = cat.emoji || (cat.tiles && cat.tiles[0] ? cat.tiles[0].emoji : '');
+    var active = (!_isFavoritesTabActive && key === currentCategory) ? ' active' : '';
+    html += '<div class="tab' + active + '" onclick="showCategory(\'' + key + '\')">' + emoji + ' ' + name + '</div>';
+  }
+
+  tabsEl.innerHTML = html;
+}
+
+// -- Category Navigation --
+function showCategory(name) {
+  _isFavoritesTabActive = false;
+  currentCategory = name;
+  renderTabs();
+  renderGrid();
+}
+
+function showFavorites() {
+  _isFavoritesTabActive = true;
+  renderTabs();
+  FavoritesSystem.renderTab('grid', speak);
+}
+
+function renderGrid() {
+  if (_isFavoritesTabActive) {
+    FavoritesSystem.renderTab('grid', speak);
+    return;
+  }
+
+  var cat = categories[currentCategory];
+  if (!cat) return;
+  var grid = document.getElementById('grid');
+  grid.className = 'grid ' + (cat.className || '');
+
+  grid.innerHTML = cat.tiles.map(function (t) {
+    var visual = t.image
+      ? '<img src="' + t.image + '" alt="" style="width:48px;height:48px;border-radius:8px;object-fit:cover;">'
+      : '<span class="emoji">' + t.emoji + '</span>';
+    return '<div class="tile" onclick="speak(\'' + t.phrase.replace(/'/g, "\\'") + '\')" role="button" aria-label="' + t.phrase.replace(/"/g, '&quot;') + '">' +
+      visual +
+      '<span class="label">' + t.label + '</span>' +
+    '</div>';
+  }).join('');
+
+  // Attach long-press-to-favorite on each tile
+  FavoritesSystem.attachToGrid('grid', function (tileEl) {
+    var label = tileEl.querySelector('.label');
+    var emoji = tileEl.querySelector('.emoji');
+    var phrase = tileEl.getAttribute('aria-label');
+    if (!phrase) return null;
+    return {
+      phrase: phrase,
+      emoji: emoji ? emoji.textContent : '',
+      label: label ? label.textContent : phrase
+    };
+  });
+}
+
+
+// =====================================================
+// == Initialization                                  ==
+// =====================================================
+
+// 1. AdminPanel.init checks localStorage and potentially replaces categories in-place
+AdminPanel.init(categories, renderGrid, renderTabs);
+
+// 2. Render dynamic tabs (categories may have been replaced by admin)
+renderTabs();
+
+// 3. Render the initial grid
+renderGrid();
+
+// 4. Init RecentsEngine, render recents bar
+RecentsEngine.renderBar('recents-container');
+
+// 5. FavoritesSystem init (CSS is already inlined)
+FavoritesSystem.init();
+
+// 6. Preload speech synthesis voices (Safari needs this)
+if ('speechSynthesis' in window) {
+  speechSynthesis.getVoices();
+  speechSynthesis.onvoiceschanged = function () { speechSynthesis.getVoices(); };
+}
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
+</script>
+</body>
+</html>

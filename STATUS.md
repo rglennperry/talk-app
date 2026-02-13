@@ -1,7 +1,7 @@
 # gordon - Status
 
-**Last Updated:** 2026-02-12
-**Current Focus:** v2 ready for iPad testing
+**Last Updated:** 2026-02-13
+**Current Focus:** PWA package ready for deployment
 
 ## Overview
 iPad communication aid for stroke recovery — single-file HTML AAC app for Gordon's mom (southern Scotland).
@@ -10,6 +10,7 @@ iPad communication aid for stroke recovery — single-file HTML AAC app for Gord
 - [x] Project scaffolded
 - [x] v1 communicator app — category grid + tap-to-speak + voice synthesis
 - [x] v2 — recents, favorites, admin panel, Scots dialect
+- [x] PWA package — manifest, service worker, icons, offline-ready, installable on iPad
 - [ ] Test on iPad Safari
 - [ ] Personalize phrases for Gordon's mom
 
@@ -33,8 +34,14 @@ iPad communication aid for stroke recovery — single-file HTML AAC app for Gord
 - 2026-02-12: Project created and tailored for AAC communicator
 - 2026-02-12: v1 communicator built — 6 categories, 69 phrases, speech synthesis
 - 2026-02-12: v2 built — 3 parallel agents (recents, favorites, admin) + integrator agent
+- 2026-02-13: PWA package created — manifest.json, sw.js, icons, README-setup.md; zip in exchange/
+
+## Deliverables
+- `outputs/pwa/` — PWA package (index.html, manifest.json, sw.js, icons, README-setup.md)
+- `outputs/gordon--pwa-package.zip` — zipped package, also in `~/exchange/`
 
 ## Next Actions
+- [ ] Deploy PWA to GitHub Pages or Netlify (see pwa/README-setup.md)
 - [ ] Test on iPad Safari — speech synthesis, touch, offline
 - [ ] Gordon reviews Scots phrasing with his mum
 - [ ] Personalize: mum's name, family names, specific preferences via admin panel
