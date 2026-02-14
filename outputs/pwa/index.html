@@ -1688,15 +1688,15 @@ var AdminPanel = (function () {
         var all = backdrop.querySelectorAll('.emoji-pick');
         for (var j = 0; j < all.length; j++) all[j].classList.remove('selected');
         this.classList.add('selected');
-        document.getElementById('modal-emoji-value').value = this.dataset.emoji;
-        document.getElementById('modal-emoji-preview').textContent = this.dataset.emoji;
+        backdrop.querySelector('#modal-emoji-value').value = this.dataset.emoji;
+        backdrop.querySelector('#modal-emoji-preview').textContent = this.dataset.emoji;
       });
     }
     backdrop.querySelector('#modal-cat-cancel').addEventListener('click', function () { backdrop.remove(); });
     backdrop.addEventListener('click', function (e) { if (e.target === backdrop) backdrop.remove(); });
     backdrop.querySelector('#modal-cat-save').addEventListener('click', function () {
-      var newName = document.getElementById('modal-cat-name').value.trim();
-      var newEmoji = document.getElementById('modal-emoji-value').value;
+      var newName = backdrop.querySelector('#modal-cat-name').value.trim();
+      var newEmoji = backdrop.querySelector('#modal-emoji-value').value;
       var selectedChip = backdrop.querySelector('.color-chip.selected');
       var newCls = selectedChip ? selectedChip.dataset.cls : currentColor;
       if (!newName) { toast('Name cannot be empty'); return; }
@@ -1740,15 +1740,15 @@ var AdminPanel = (function () {
         var all = backdrop.querySelectorAll('.emoji-pick');
         for (var j = 0; j < all.length; j++) all[j].classList.remove('selected');
         this.classList.add('selected');
-        document.getElementById('modal-emoji-value').value = this.dataset.emoji;
-        document.getElementById('modal-emoji-preview').textContent = this.dataset.emoji;
+        backdrop.querySelector('#modal-emoji-value').value = this.dataset.emoji;
+        backdrop.querySelector('#modal-emoji-preview').textContent = this.dataset.emoji;
       });
     }
     backdrop.querySelector('#modal-cat-cancel').addEventListener('click', function () { backdrop.remove(); });
     backdrop.addEventListener('click', function (e) { if (e.target === backdrop) backdrop.remove(); });
     backdrop.querySelector('#modal-cat-save').addEventListener('click', function () {
-      var newName = document.getElementById('modal-cat-name').value.trim();
-      var newEmoji = document.getElementById('modal-emoji-value').value;
+      var newName = backdrop.querySelector('#modal-cat-name').value.trim();
+      var newEmoji = backdrop.querySelector('#modal-emoji-value').value;
       var selectedChip = backdrop.querySelector('.color-chip.selected');
       var cls = selectedChip ? selectedChip.dataset.cls : 'cat-custom1';
       if (!newName) { toast('Name is required'); return; }
@@ -1807,8 +1807,8 @@ var AdminPanel = (function () {
         var all = backdrop.querySelectorAll('.emoji-pick');
         for (var j = 0; j < all.length; j++) all[j].classList.remove('selected');
         this.classList.add('selected');
-        document.getElementById('modal-emoji-value').value = this.dataset.emoji;
-        document.getElementById('modal-emoji-preview').textContent = this.dataset.emoji;
+        backdrop.querySelector('#modal-emoji-value').value = this.dataset.emoji;
+        backdrop.querySelector('#modal-emoji-preview').textContent = this.dataset.emoji;
       });
     }
     var switchBtn = backdrop.querySelector('#modal-switch-emoji');
@@ -1821,17 +1821,17 @@ var AdminPanel = (function () {
     backdrop.querySelector('#modal-tile-cancel').addEventListener('click', function () { backdrop.remove(); });
     backdrop.addEventListener('click', function (e) { if (e.target === backdrop) backdrop.remove(); });
     backdrop.querySelector('#modal-tile-save').addEventListener('click', function () {
-      var label = document.getElementById('modal-tile-label').value.trim();
-      var phrase = document.getElementById('modal-tile-phrase').value.trim();
+      var label = backdrop.querySelector('#modal-tile-label').value.trim();
+      var phrase = backdrop.querySelector('#modal-tile-phrase').value.trim();
       if (!label) { toast('Label is required'); return; }
       if (!phrase) { toast('Phrase is required'); return; }
       tile.label = label; tile.phrase = phrase;
       if (!hasImage) {
-        var emojiVal = document.getElementById('modal-emoji-value');
+        var emojiVal = backdrop.querySelector('#modal-emoji-value');
         tile.emoji = emojiVal ? emojiVal.value : tile.emoji;
         delete tile.image;
       } else {
-        var imgVal = document.getElementById('modal-tile-image');
+        var imgVal = backdrop.querySelector('#modal-tile-image');
         if (imgVal) tile.image = imgVal.value.trim();
       }
       backdrop.remove(); renderPanel(); applyToApp();
@@ -1867,26 +1867,26 @@ var AdminPanel = (function () {
         var all = backdrop.querySelectorAll('.emoji-pick');
         for (var j = 0; j < all.length; j++) all[j].classList.remove('selected');
         this.classList.add('selected');
-        document.getElementById('modal-emoji-value').value = this.dataset.emoji;
-        document.getElementById('modal-emoji-preview').textContent = this.dataset.emoji;
+        backdrop.querySelector('#modal-emoji-value').value = this.dataset.emoji;
+        backdrop.querySelector('#modal-emoji-preview').textContent = this.dataset.emoji;
       });
     }
     backdrop.querySelector('#modal-tile-cancel').addEventListener('click', function () { backdrop.remove(); });
     backdrop.addEventListener('click', function (e) { if (e.target === backdrop) backdrop.remove(); });
     backdrop.querySelector('#modal-tile-save').addEventListener('click', function () {
-      var label = document.getElementById('modal-tile-label').value.trim();
-      var phrase = document.getElementById('modal-tile-phrase').value.trim();
+      var label = backdrop.querySelector('#modal-tile-label').value.trim();
+      var phrase = backdrop.querySelector('#modal-tile-phrase').value.trim();
       if (!label) { toast('Label is required'); return; }
       if (!phrase) { toast('Phrase is required'); return; }
       var newTile = { label: label, phrase: phrase };
       if (withImage) {
-        var imgArea = document.getElementById('modal-tile-image');
+        var imgArea = backdrop.querySelector('#modal-tile-image');
         var imgVal = imgArea ? imgArea.value.trim() : '';
         if (!imgVal) { toast('Image data URL is required'); return; }
         if (imgVal.indexOf('data:') !== 0) { toast('Must be a data: URL (base64)'); return; }
         newTile.image = imgVal; newTile.emoji = '\uD83D\uDDBC';
       } else {
-        var emojiVal = document.getElementById('modal-emoji-value');
+        var emojiVal = backdrop.querySelector('#modal-emoji-value');
         newTile.emoji = emojiVal ? emojiVal.value : '\uD83D\uDE0A';
       }
       if (!_categories[catKey].tiles) _categories[catKey].tiles = [];
