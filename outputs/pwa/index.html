@@ -463,6 +463,59 @@
     opacity: 0.7 !important;
     transition: opacity 0.15s ease;
   }
+
+  /* -- Big Text Display (visual fallback for audio) -- */
+  #big-text-overlay {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 8000;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 20px;
+    min-height: 120px;
+    background: linear-gradient(0deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.75) 80%, transparent 100%);
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+  #big-text-overlay.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+  #big-text-content {
+    font-size: clamp(2.5rem, 8vw, 5rem);
+    font-weight: 800;
+    color: #ffffff;
+    text-align: center;
+    line-height: 1.15;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    max-width: 95%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+  #big-text-dismiss {
+    position: absolute;
+    top: 8px;
+    right: 16px;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    border: none;
+    color: #fff;
+    font-size: 1.4rem;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: auto;
+  }
+  #big-text-dismiss:active { background: rgba(255,255,255,0.3); }
+
+  @media (orientation: landscape) {
+    #big-text-overlay { min-height: 90px; padding: 16px 20px; }
+    #big-text-content { font-size: clamp(2rem, 6vw, 3.5rem); }
+  }
 </style>
 </head>
 <body>
@@ -505,6 +558,12 @@
     <div id="grid" class="grid"></div>
   </div>
 
+</div>
+
+<!-- Big Text Display (visual fallback for audio) -->
+<div id="big-text-overlay" onclick="dismissBigText()">
+  <button id="big-text-dismiss" aria-label="Dismiss">&#x2715;</button>
+  <div id="big-text-content"></div>
 </div>
 
 <script>
@@ -940,6 +999,7 @@ var AdminPanel = (function () {
   var _phraseEmoji = '\uD83D\uDE0A';
 
   var STORAGE_KEY = 'gordon-config';
+  var VOICE_STORAGE_KEY = 'gordon-voice-config';
   var ADMIN_ACCENT = '#8e44ad';
   var ADMIN_ACCENT_LIGHT = '#a569bd';
 
@@ -1143,6 +1203,28 @@ var AdminPanel = (function () {
   border: none; border-radius: 8px; color: #fff;\
   font-size: 0.85rem; font-weight: 600; cursor: pointer; margin-bottom: 12px;\
 }\
+.voice-lang-group { margin-bottom: 16px; }\
+.voice-lang-title {\
+  font-size: 0.75rem; font-weight: 700; color: ' + ADMIN_ACCENT_LIGHT + ';\
+  text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 8px 0;\
+}\
+.voice-card {\
+  display: flex; align-items: center; gap: 10px;\
+  padding: 10px 12px; background: var(--card, #0f3460);\
+  border: 2px solid transparent; border-radius: 10px;\
+  margin-bottom: 6px; min-height: 48px; cursor: pointer;\
+}\
+.voice-card.selected { border-color: ' + ADMIN_ACCENT + '; background: rgba(142, 68, 173, 0.2); }\
+.voice-card .voice-info { flex: 1; min-width: 0; }\
+.voice-card .voice-name { font-weight: 600; font-size: 0.9rem; }\
+.voice-card .voice-lang-sub { font-size: 0.75rem; color: var(--text-dim, #a0a0b8); }\
+.voice-test-btn {\
+  width: 44px; height: 44px; border: none; border-radius: 8px;\
+  font-size: 1.1rem; cursor: pointer; display: flex;\
+  align-items: center; justify-content: center;\
+  color: #fff; background: rgba(52, 152, 219, 0.3); flex-shrink: 0;\
+}\
+.voice-test-btn:active { background: rgba(52, 152, 219, 0.6); }\
 ';
 
   function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
@@ -1165,6 +1247,17 @@ var AdminPanel = (function () {
 
   function loadConfig() {
     try { var raw = localStorage.getItem(STORAGE_KEY); if (raw) return JSON.parse(raw); }
+    catch (e) { /* silent */ }
+    return null;
+  }
+
+  function saveVoiceConfig(cfg) {
+    try { localStorage.setItem(VOICE_STORAGE_KEY, JSON.stringify(cfg)); }
+    catch (e) { toast('Error saving voice'); }
+  }
+
+  function loadVoiceConfig() {
+    try { var raw = localStorage.getItem(VOICE_STORAGE_KEY); if (raw) return JSON.parse(raw); }
     catch (e) { /* silent */ }
     return null;
   }
@@ -1344,12 +1437,68 @@ var AdminPanel = (function () {
     return html;
   }
 
+  function renderVoice() {
+    var saved = loadVoiceConfig();
+    var voices = ('speechSynthesis' in window) ? window.speechSynthesis.getVoices() : [];
+    var html = '<div class="admin-card"><h2>Voice Selection</h2>';
+    html += '<p>Choose the voice used for text-to-speech. Tap a voice to select it, use the play button to preview.</p>';
+    html += '<div class="admin-btn-row" style="margin-bottom:12px;">';
+    html += '<button class="admin-btn secondary" data-action="voice-reset">' + (!saved ? '&#10003; ' : '') + 'Auto-detect (default)</button></div>';
+    if (voices.length === 0) {
+      html += '<p style="color:var(--warning);">No voices available yet. Close and reopen this tab to refresh.</p>';
+      html += '</div>';
+      return html;
+    }
+    // Group voices by language
+    var groups = {};
+    var langNames = {
+      'en': 'English', 'es': 'Spanish', 'fr': 'French', 'de': 'German',
+      'it': 'Italian', 'pt': 'Portuguese', 'ja': 'Japanese', 'ko': 'Korean',
+      'zh': 'Chinese', 'ru': 'Russian', 'ar': 'Arabic', 'hi': 'Hindi',
+      'nl': 'Dutch', 'sv': 'Swedish', 'da': 'Danish', 'no': 'Norwegian',
+      'fi': 'Finnish', 'pl': 'Polish', 'tr': 'Turkish', 'th': 'Thai',
+      'he': 'Hebrew', 'id': 'Indonesian', 'cs': 'Czech', 'el': 'Greek',
+      'ro': 'Romanian', 'hu': 'Hungarian', 'uk': 'Ukrainian'
+    };
+    for (var vi = 0; vi < voices.length; vi++) {
+      var v = voices[vi];
+      var langCode = (v.lang || '').split('-')[0].split('_')[0].toLowerCase();
+      var groupName = langNames[langCode] || v.lang || 'Other';
+      if (!groups[groupName]) groups[groupName] = [];
+      groups[groupName].push(v);
+    }
+    // Sort: English first, then alphabetical
+    var groupKeys = Object.keys(groups).sort(function (a, b) {
+      if (a === 'English') return -1;
+      if (b === 'English') return 1;
+      return a.localeCompare(b);
+    });
+    for (var gi = 0; gi < groupKeys.length; gi++) {
+      var gName = groupKeys[gi];
+      var gVoices = groups[gName];
+      html += '<div class="voice-lang-group"><div class="voice-lang-title">' + escHtml(gName) + ' (' + gVoices.length + ')</div>';
+      for (var vj = 0; vj < gVoices.length; vj++) {
+        var voice = gVoices[vj];
+        var isSelected = saved && saved.voiceName === voice.name && saved.lang === voice.lang;
+        html += '<div class="voice-card' + (isSelected ? ' selected' : '') + '" data-action="voice-select" data-voice-name="' + escHtml(voice.name) + '" data-voice-lang="' + escHtml(voice.lang) + '">';
+        html += '<div class="voice-info"><div class="voice-name">' + escHtml(voice.name) + '</div>';
+        html += '<div class="voice-lang-sub">' + escHtml(voice.lang) + (voice.localService ? ' &bull; local' : ' &bull; network') + '</div></div>';
+        html += '<button class="voice-test-btn" data-action="voice-test" data-voice-name="' + escHtml(voice.name) + '" data-voice-lang="' + escHtml(voice.lang) + '">&#9654;</button>';
+        html += '</div>';
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
   function renderPanel() {
     if (!_panelEl) return;
     var sections = [
       { id: 'categories', label: 'Categories' },
       { id: 'tiles',      label: 'Tiles' },
       { id: 'phrases',    label: 'New Phrase' },
+      { id: 'voice',      label: 'Voice' },
       { id: 'transfer',   label: 'Import/Export' }
     ];
     var contentHtml = '';
@@ -1360,6 +1509,7 @@ var AdminPanel = (function () {
         else { _currentSection = 'categories'; contentHtml = renderCategories(); }
         break;
       case 'phrases': contentHtml = renderPhrases(); break;
+      case 'voice': contentHtml = renderVoice(); break;
       case 'transfer': contentHtml = renderTransfer(); break;
       default: contentHtml = renderCategories();
     }
@@ -1408,6 +1558,31 @@ var AdminPanel = (function () {
         case 'export-copy': exportCopyClipboard(); break;
         case 'import-config': importConfig_ui(); break;
         case 'reset-defaults': confirmReset(); break;
+        case 'voice-select':
+          var vName = btn.dataset.voiceName;
+          var vLang = btn.dataset.voiceLang;
+          saveVoiceConfig({ voiceName: vName, lang: vLang });
+          toast('Voice: ' + vName);
+          renderPanel();
+          break;
+        case 'voice-test':
+          var tName = btn.dataset.voiceName;
+          var tLang = btn.dataset.voiceLang;
+          if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            var testUtter = new SpeechSynthesisUtterance('Hello, this is how I sound.');
+            var allVoices = window.speechSynthesis.getVoices();
+            var testVoice = allVoices.find(function (v) { return v.name === tName && v.lang === tLang; });
+            if (testVoice) { testUtter.voice = testVoice; testUtter.lang = testVoice.lang; }
+            testUtter.rate = 0.9;
+            window.speechSynthesis.speak(testUtter);
+          }
+          break;
+        case 'voice-reset':
+          localStorage.removeItem(VOICE_STORAGE_KEY);
+          toast('Voice reset to auto-detect');
+          renderPanel();
+          break;
       }
     });
   }
@@ -1779,6 +1954,11 @@ var AdminPanel = (function () {
     }
     _categories = categoriesRef;
     injectStyles(); createGearIcon(); setupTripleTap(); createPanel();
+    // Force-save on page hide/visibility change (iOS Safari can kill PWAs without warning)
+    var _forceSave = function () { if (_categories) saveConfig(); };
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') _forceSave(); });
+    window.addEventListener('pagehide', _forceSave);
+    window.addEventListener('beforeunload', _forceSave);
   }
 
   function open() {
@@ -1986,12 +2166,37 @@ function _findTileByPhrase(phrase) {
   return null;
 }
 
+// -- Big Text Display --
+var _bigTextTimer = null;
+var BIG_TEXT_DURATION = 4000; // ms before auto-dismiss
+
+function showBigText(phrase) {
+  var overlay = document.getElementById('big-text-overlay');
+  var content = document.getElementById('big-text-content');
+  if (!overlay || !content) return;
+  clearTimeout(_bigTextTimer);
+  content.textContent = phrase;
+  overlay.classList.add('visible');
+  _bigTextTimer = setTimeout(function () {
+    overlay.classList.remove('visible');
+  }, BIG_TEXT_DURATION);
+}
+
+function dismissBigText() {
+  clearTimeout(_bigTextTimer);
+  var overlay = document.getElementById('big-text-overlay');
+  if (overlay) overlay.classList.remove('visible');
+}
+
 // -- Speech --
 function speak(phrase) {
   lastPhrase = phrase;
 
   // Update display
   document.getElementById('message-display').textContent = phrase;
+
+  // Show big text overlay
+  showBigText(phrase);
 
   // Speak it
   if ('speechSynthesis' in window) {
@@ -2000,17 +2205,26 @@ function speak(phrase) {
     utter.rate = 0.9;
     utter.pitch = 1.0;
     utter.volume = 1.0;
-    utter.lang = 'en-GB';
-    // Prefer Scottish voice (Fiona on iOS), then any en-GB, then any English
     var voices = window.speechSynthesis.getVoices();
-    var preferred = voices.find(function (v) { return v.name === 'Fiona'; }) ||
-                    voices.find(function (v) { return v.lang === 'en-SC'; }) ||
-                    voices.find(function (v) { return v.name.toLowerCase().indexOf('scot') !== -1; }) ||
-                    voices.find(function (v) { return v.lang === 'en-GB' && v.localService; }) ||
-                    voices.find(function (v) { return v.lang.indexOf('en-GB') === 0; }) ||
-                    voices.find(function (v) { return v.lang.indexOf('en') === 0 && v.localService; }) ||
-                    voices[0];
-    if (preferred) utter.voice = preferred;
+    var preferred = null;
+    // Check saved voice preference first
+    var voiceCfg = null;
+    try { var vcRaw = localStorage.getItem('gordon-voice-config'); if (vcRaw) voiceCfg = JSON.parse(vcRaw); } catch (e) { /* silent */ }
+    if (voiceCfg && voiceCfg.voiceName) {
+      preferred = voices.find(function (v) { return v.name === voiceCfg.voiceName && v.lang === voiceCfg.lang; });
+    }
+    // Fall back to auto-detect chain
+    if (!preferred) {
+      utter.lang = 'en-GB';
+      preferred = voices.find(function (v) { return v.name === 'Fiona'; }) ||
+                  voices.find(function (v) { return v.lang === 'en-SC'; }) ||
+                  voices.find(function (v) { return v.name.toLowerCase().indexOf('scot') !== -1; }) ||
+                  voices.find(function (v) { return v.lang === 'en-GB' && v.localService; }) ||
+                  voices.find(function (v) { return v.lang.indexOf('en-GB') === 0; }) ||
+                  voices.find(function (v) { return v.lang.indexOf('en') === 0 && v.localService; }) ||
+                  voices[0];
+    }
+    if (preferred) { utter.voice = preferred; utter.lang = preferred.lang; }
     window.speechSynthesis.speak(utter);
   }
 
@@ -2034,6 +2248,7 @@ function clearMessage() {
   lastPhrase = '';
   document.getElementById('message-display').textContent = 'Tap a button to speak';
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  dismissBigText();
 }
 
 // -- Dynamic Tab Rendering --
@@ -2140,10 +2355,10 @@ if ('speechSynthesis' in window) {
   speechSynthesis.getVoices();
   speechSynthesis.onvoiceschanged = function () { speechSynthesis.getVoices(); };
 }
-</script>
-<script>
+
+// 7. Register service worker for offline PWA support
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js');
+  navigator.serviceWorker.register('sw.js').catch(function () {});
 }
 </script>
 </body>

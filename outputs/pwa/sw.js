@@ -1,4 +1,4 @@
-const CACHE = 'talk-v2';
+const CACHE = 'talk-v3';
 const ASSETS = ['./', 'index.html', 'manifest.json'];
 
 self.addEventListener('install', e => {
